@@ -6,6 +6,8 @@ import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
+import '../returns/customer_returns_screens.dart';
+import 'passage_screens.dart';
 
 enum SalesPeriod { today, week, month, all }
 
@@ -22,7 +24,7 @@ class SaleTile extends StatelessWidget {
     final total = v.dbl('montant_total');
     final paye = v.dbl('montant_paye');
     final credit = total - paye > 0.009;
-    final client = v.obj('client')?.strOrNull('nom');
+    final client = v.obj('client')?.strOrNull('nom') ?? v.strOrNull('nom_passage');
     final facture = v.obj('facture')?.strOrNull('numero_facture');
     return ListTile(
       onTap: onTap,
@@ -141,6 +143,9 @@ class SaleDetailScreen extends StatelessWidget {
           final paye = v.dbl('montant_paye');
           final reste = total - paye;
           final facture = v.obj('facture');
+          final client = v.obj('client');
+          final walkIn = client == null;
+          final tel = v.strOrNull('telephone_passage');
           return RefreshIndicator(
             onRefresh: reload,
             child: ListView(padding: const EdgeInsets.all(16), children: [
@@ -155,7 +160,8 @@ class SaleDetailScreen extends StatelessWidget {
                         style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
                       ),
                     ),
-                    Badge2(reste > 0.009 ? 'Crédit' : 'Payée', color: reste > 0.009 ? const Color(0xFFFBBF24) : const Color(0xFF86EFAC)),
+                    Badge2(reste > 0.009 ? (walkIn ? 'Reste dû' : 'Crédit') : 'Payée',
+                        color: reste > 0.009 ? const Color(0xFFFBBF24) : const Color(0xFF86EFAC)),
                   ]),
                   const SizedBox(height: 6),
                   Text(money(total), style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900)),
@@ -163,11 +169,38 @@ class SaleDetailScreen extends StatelessWidget {
                   Text(dateTime(v['date_vente'] ?? v['created_at']), style: const TextStyle(color: Colors.white60)),
                 ]),
               ),
+              const SizedBox(height: 12),
+              Row(children: [
+                if (walkIn && reste > 0.009) ...[
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () async {
+                        if (await collectPassagePayment(context, v)) reload();
+                      },
+                      icon: const Icon(Icons.payments_outlined),
+                      label: const Text('Encaisser'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final r = await context.push<String>(CustomerReturnForm(saleId: saleId));
+                      if (r != null) reload();
+                    },
+                    icon: const Icon(Icons.assignment_return_outlined),
+                    label: const Text('Retour'),
+                  ),
+                ),
+              ]),
               const SizedBox(height: 14),
               SectionCard(title: 'Informations', icon: Icons.info_outline, children: [
-                InfoRow('Client', v.obj('client')?.str('nom') ?? 'Client de passage'),
+                InfoRow('Client', client?.str('nom') ?? v.strOrNull('nom_passage') ?? 'Client de passage'),
+                if (walkIn) InfoRow('Type', 'Client de passage'),
+                if (walkIn && tel != null) InfoRow('Téléphone', tel),
                 InfoRow('Mode de paiement', paymentModeLabel(v.strOrNull('mode_paiement'))),
-                InfoRow('Vendeur', v.obj('utilisateur')?.str('nom') ?? '—'),
+                InfoRow('Créée par', v.obj('utilisateur')?.str('nom') ?? '—'),
                 if (facture != null) InfoRow('Statut facture', facture.str('statut', '—')),
               ]),
               const SizedBox(height: 14),
@@ -186,7 +219,9 @@ class SaleDetailScreen extends StatelessWidget {
               SectionCard(children: [
                 TotalLine('Total', money(total), bold: true),
                 TotalLine('Payé', money(paye), color: AppColors.success),
-                if (reste > 0.009) TotalLine('Reste (crédit)', money(reste), bold: true, color: AppColors.warning),
+                if (reste > 0.009)
+                  TotalLine(walkIn ? 'Reste à encaisser' : 'Reste (crédit)', money(reste),
+                      bold: true, color: walkIn ? AppColors.danger : AppColors.warning),
               ]),
             ]),
           );

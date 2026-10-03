@@ -24,6 +24,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   Json? _client;
   String _mode = 'especes';
   late final _received = TextEditingController(text: priceInput(_total, keepZero: true));
+  final _nomPassage = TextEditingController();
+  final _telPassage = TextEditingController();
   bool _busy = false;
 
   double get _total => round2(widget.items.fold(0.0, (t, e) => t + e.total));
@@ -34,15 +36,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   String? get _blocking {
     if (_received.text.trim().isNotEmpty && parseInput(_received.text) == null) return 'Montant reçu invalide.';
-    if (_credit > 0 && _client == null) {
-      return 'Client de passage : le paiement complet est obligatoire. Choisissez un client pour vendre à crédit.';
-    }
     return null;
   }
 
   @override
   void dispose() {
     _received.dispose();
+    _nomPassage.dispose();
+    _telPassage.dispose();
     super.dispose();
   }
 
@@ -73,12 +74,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (_credit > 0) {
       final ok = await confirm(
         context,
-        'Vente à crédit',
-        '${money(_credit)} seront ajoutés au crédit de ${_client!.str('nom')}. Continuer ?',
+        _client == null ? 'Paiement partiel' : 'Vente à crédit',
+        _client == null
+            ? 'Le reste de ${money(_credit)} sera suivi dans « Clients de passage ». Continuer ?'
+            : '${money(_credit)} seront ajoutés au crédit de ${_client!.str('nom')}. Continuer ?',
         ok: 'Valider',
       );
       if (!ok || !mounted) return;
     }
+    final walkIn = _client == null && _credit > 0;
+    final nomPassage = _nomPassage.text.trim();
+    final telPassage = _telPassage.text.trim();
     setState(() => _busy = true);
     try {
       final res = await context.api.post('pos/sale', {
@@ -90,6 +96,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         'montant_total': _total,
         'montant_paye': _paid,
         'mode_paiement': _mode,
+        if (walkIn && nomPassage.isNotEmpty) 'nom_passage': nomPassage,
+        if (walkIn && telPassage.isNotEmpty) 'telephone_passage': telPassage,
       });
       final r = res is Map ? res.cast<String, dynamic>() : <String, dynamic>{};
       widget.onSuccess();
@@ -102,7 +110,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           paid: _paid,
           change: _change,
           credit: _credit,
-          clientName: _client?.str('nom'),
+          clientName: _client?.str('nom') ?? (walkIn && nomPassage.isNotEmpty ? nomPassage : null),
+          walkIn: _client == null,
           mode: _mode,
         ),
       ));
@@ -141,7 +150,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             leading: IconSquare(_client == null ? Icons.directions_walk : Icons.person, color: _client == null ? AppColors.muted : AppColors.violet),
             title: Text(_client?.str('nom') ?? 'Client de passage', style: const TextStyle(fontWeight: FontWeight.w700)),
             subtitle: Text(_client == null
-                ? 'Paiement complet obligatoire'
+                ? 'Paiement partiel possible : le reste est suivi'
                 : [
                     if (_client!.strOrNull('telephone') != null) _client!.str('telephone'),
                     'Crédit actuel : ${money(_client!['solde'])}',
@@ -197,9 +206,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 const Divider(height: 18),
                 TotalLine('Rendu monnaie', money(_change), big: true, color: AppColors.success),
               ],
-              if (_credit > 0 && _client != null) ...[
+              if (_credit > 0) ...[
                 const Divider(height: 18),
-                TotalLine('Reste en crédit client', money(_credit), big: true, color: AppColors.warning),
+                TotalLine(_client != null ? 'Reste en crédit client' : 'Reste à encaisser', money(_credit),
+                    big: true, color: AppColors.warning),
               ],
               if (_change == 0 && _credit == 0) ...[
                 const Divider(height: 18),
@@ -208,6 +218,36 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ]),
           ),
         ),
+        if (_credit > 0 && _client == null) ...[
+          const SizedBox(height: 12),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Row(children: [
+                  const Icon(Icons.directions_walk, color: AppColors.warning),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text('Le reste de ${money(_credit)} sera suivi dans « Clients de passage ».',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ]),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _nomPassage,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(labelText: 'Nom (facultatif)', prefixIcon: Icon(Icons.person_outline)),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _telPassage,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Téléphone (facultatif)', prefixIcon: Icon(Icons.phone_outlined)),
+                ),
+              ]),
+            ),
+          ),
+        ],
         if (blocking != null) ...[
           const SizedBox(height: 12),
           Container(
@@ -257,6 +297,7 @@ class SaleSuccessScreen extends StatelessWidget {
     required this.credit,
     required this.clientName,
     required this.mode,
+    this.walkIn = false,
   });
 
   final String? invoiceNumber;
@@ -267,6 +308,9 @@ class SaleSuccessScreen extends StatelessWidget {
   final double credit;
   final String? clientName;
   final String mode;
+
+  /// Client de passage : le reste n'est pas un crédit client mais un « reste à encaisser ».
+  final bool walkIn;
 
   @override
   Widget build(BuildContext context) {
@@ -311,7 +355,15 @@ class SaleSuccessScreen extends StatelessWidget {
                           TotalLine('Total', money(total), bold: true),
                           TotalLine('Payé', money(paid)),
                           if (change > 0) TotalLine('Rendu monnaie', money(change), big: true, color: AppColors.success),
-                          if (credit > 0) TotalLine('Ajouté au crédit', money(credit), big: true, color: AppColors.warning),
+                          if (credit > 0)
+                            TotalLine(walkIn ? 'Reste à encaisser' : 'Ajouté au crédit', money(credit),
+                                big: true, color: AppColors.warning),
+                          if (credit > 0 && walkIn)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 6),
+                              child: Text('Suivi dans Plus › Clients de passage.',
+                                  style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                            ),
                         ]),
                       ),
                     ),

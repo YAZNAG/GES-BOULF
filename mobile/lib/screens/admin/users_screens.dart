@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
 import '../../widgets/pickers.dart';
+import 'user_profile_screen.dart';
 
 String roleLabel(String r) => switch (r.toLowerCase()) {
       'admin' => 'Administrateur',
@@ -83,6 +84,10 @@ class _UsersScreenState extends State<UsersScreen> {
               onChanged: u.integer('id') == me ? null : (_) => _toggle(u, reload),
             ),
             onTap: () async {
+              await ctx.push(UserProfileScreen(userId: u.integer('id'), self: u.integer('id') == me));
+              reload();
+            },
+            onLongPress: () async {
               final ok = await ctx.push<bool>(UserForm(user: u));
               if (ok == true) reload();
             },

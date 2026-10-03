@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../core/api.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
 import 'about_screen.dart';
 import 'admin/settings_screens.dart';
+import 'admin/user_profile_screen.dart';
 import 'admin/users_screens.dart';
 import 'catalog/catalog_admin_screens.dart';
 import 'charges/charges_screens.dart';
 import 'clients/clients_screens.dart';
 import 'purchases/orders_screens.dart';
 import 'purchases/receipts_screens.dart';
+import 'returns/customer_returns_screens.dart';
+import 'returns/supplier_returns_screens.dart';
+import 'sales/passage_screens.dart';
 import 'sales/sales_screens.dart';
 import 'stock/inventory_screens.dart';
 import 'stock/movements_screen.dart';
@@ -34,6 +39,10 @@ class MoreScreen extends StatelessWidget {
         ('Clients', 'Fiches et historique', Icons.people_alt_outlined, AppColors.violet, () => const ClientsScreen()),
         ('Crédit clients', 'Encaisser un règlement', Icons.account_balance_wallet_outlined, AppColors.warning,
             () => const ClientsScreen(creditOnly: true)),
+        ('Clients de passage', 'Restes à encaisser, encaissements', Icons.directions_walk, AppColors.teal,
+            () => const PassageScreen()),
+        ('Retours clients', 'Articles rapportés, remboursements', Icons.assignment_return_outlined, AppColors.danger,
+            () => const CustomerReturnsScreen()),
       ]),
       ('Achats', [
         ('Prix d’achat', 'Prix d’achat et dernier achat', Icons.shopping_bag_outlined, AppColors.teal, () => const PurchasePricesScreen()),
@@ -43,6 +52,8 @@ class MoreScreen extends StatelessWidget {
         ('Bons de commande', 'Créer, confirmer, suivre', Icons.receipt_long_outlined, AppColors.info, () => const OrdersScreen()),
         ('Bons de réception', 'Entrées de marchandises', Icons.move_to_inbox_outlined, AppColors.success, () => const ReceiptsScreen()),
         ('Paiements fournisseurs', 'Historique des règlements', Icons.history, AppColors.violet, () => const SupplierPaymentsScreen()),
+        ('Retours fournisseurs', 'Renvoyer des articles, avoirs', Icons.assignment_return, AppColors.warning,
+            () => const SupplierReturnsScreen()),
       ]),
       ('Catalogue', [
         ('Familles & catégories', 'Familles, catégories, sous-catégories', Icons.account_tree_outlined, AppColors.primary,
@@ -77,46 +88,57 @@ class MoreScreen extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('Plus', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
               const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.08),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                ),
-                child: Row(children: [
-                  CircleAvatar(
-                    radius: 27,
-                    backgroundColor: AppColors.primary,
-                    child: Text(
-                      s.userName.isEmpty ? '?' : s.userName.trim().split(RegExp(r'\s+')).take(2).map((w) => w.characters.first.toUpperCase()).join(),
-                      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+                  onTap: s.user?.intOrNull('id') == null
+                      ? null
+                      : () => context.push(UserProfileScreen(userId: s.user!.integer('id'), self: true)),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(s.userName, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
-                      Text(s.userEmail, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white60, fontSize: 13)),
-                      const SizedBox(height: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                        decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(20)),
-                        child: Text(s.roleLabel, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                    child: Row(children: [
+                      CircleAvatar(
+                        radius: 27,
+                        backgroundColor: AppColors.primary,
+                        child: Text(
+                          s.userName.isEmpty ? '?' : s.userName.trim().split(RegExp(r'\s+')).take(2).map((w) => w.characters.first.toUpperCase()).join(),
+                          style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(s.userName, style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+                          Text(s.userEmail, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white60, fontSize: 13)),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                            decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.9), borderRadius: BorderRadius.circular(20)),
+                            child: Text(s.roleLabel, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text('Voir mon profil et mon activité ›', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                        ]),
+                      ),
+                      IconButton(
+                        tooltip: 'Se déconnecter',
+                        style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.1)),
+                        icon: const Icon(Icons.logout, color: Colors.white),
+                        onPressed: () async {
+                          if (await confirm(context, 'Déconnexion', 'Voulez-vous vous déconnecter ?', ok: 'Se déconnecter', danger: true)) {
+                            await s.logout();
+                          }
+                        },
                       ),
                     ]),
                   ),
-                  IconButton(
-                    tooltip: 'Se déconnecter',
-                    style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.1)),
-                    icon: const Icon(Icons.logout, color: Colors.white),
-                    onPressed: () async {
-                      if (await confirm(context, 'Déconnexion', 'Voulez-vous vous déconnecter ?', ok: 'Se déconnecter', danger: true)) {
-                        await s.logout();
-                      }
-                    },
-                  ),
-                ]),
+                ),
               ),
             ]),
           ),
