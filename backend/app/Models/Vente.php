@@ -13,6 +13,8 @@ class Vente extends Model
     protected $fillable = [
         'commande_vente_id',
         'client_id',
+        'nom_passage',
+        'telephone_passage',
         'montant_total',
         'montant_remise',
         'montant_paye',

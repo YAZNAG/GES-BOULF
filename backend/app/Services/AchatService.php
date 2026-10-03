@@ -241,6 +241,11 @@ class AchatService
                 'libelle' => 'Règlement '.(self::MODES[$p->mode] ?? $p->mode).($p->reference ? ' n° '.$p->reference : ''),
                 'debit' => 0.0, 'credit' => (float) $p->montant, 'tri' => $p->created_at]);
         }
+        foreach (\App\Models\RetourFournisseur::query()->where('fournisseur_id', $fournisseur->id)->where('reglement', 'avoir')->get() as $r) {
+            $lignes->push(['date' => $r->date_retour->toDateString(), 'type' => 'retour', 'id' => $r->id,
+                'libelle' => 'Retour '.$r->numero.' (avoir)'.($r->motif ? ' — '.$r->motif : ''),
+                'debit' => 0.0, 'credit' => (float) $r->total, 'tri' => $r->created_at]);
+        }
         $solde = 0.0;
 
         return $lignes->sortBy([['date', 'asc'], ['tri', 'asc']])->values()->map(function ($l) use (&$solde) {

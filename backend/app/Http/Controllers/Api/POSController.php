@@ -28,6 +28,8 @@ class POSController extends Controller
             'montant_total' => 'required|numeric|min:0',
             'montant_paye' => 'required|numeric|min:0',
             'mode_paiement' => 'required|string',
+            'nom_passage' => 'nullable|string|max:120',
+            'telephone_passage' => 'nullable|string|max:20',
         ]);
 
         // Le montant remis au-delà du total est de la monnaie rendue, pas un encaissement.
@@ -83,6 +85,9 @@ class POSController extends Controller
                 $vente = Vente::create([
                     'commande_vente_id' => $commande->id,
                     'client_id' => $request->client_id,
+                    // Client de passage : nom / téléphone facultatifs pour retrouver un reste à payer.
+                    'nom_passage' => $request->client_id ? null : ($request->nom_passage ?: null),
+                    'telephone_passage' => $request->client_id ? null : ($request->telephone_passage ?: null),
                     'montant_total' => $request->montant_total,
                     'montant_remise' => 0,
                     'montant_paye' => $request->montant_paye,

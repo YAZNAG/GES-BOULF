@@ -10,6 +10,9 @@ class Retour extends Model
     protected $table = 'retours';
 
     protected $fillable = [
+        'numero',
+        'en_stock',
+        'remboursement',
         'vente_id',
         'article_id',
         'quantite',

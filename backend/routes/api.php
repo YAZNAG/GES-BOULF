@@ -34,7 +34,7 @@ Route::get('/health', fn() => response()->json(['ok' => true]));
 
 
 
-Route::post('retours', [RetourController::class, 'store']);
+Route::middleware('auth:sanctum')->post('retours', [RetourController::class, 'store']);
 
 Route::middleware(['auth:sanctum', 'permission:systeme.stats'])->get('admin/reports/sales', [ReportController::class, 'salesReport']);
 
@@ -156,6 +156,9 @@ Route::middleware('auth:sanctum')->prefix('m')->group(function () {
     Route::get('ventes/{id}', [\App\Http\Controllers\Api\MobileController::class, 'vente'])->whereNumber('id');
     Route::get('clients', [\App\Http\Controllers\Api\MobileController::class, 'clients']);
     Route::get('mouvements', [\App\Http\Controllers\Api\MobileController::class, 'mouvements']);
+    Route::get('passage', [\App\Http\Controllers\Api\MobileController::class, 'passage']);
+    Route::get('passage/encaissements', [\App\Http\Controllers\Api\MobileController::class, 'encaissementsPassage']);
+    Route::post('passage/{id}/encaisser', [\App\Http\Controllers\Api\MobileController::class, 'encaisserPassage'])->whereNumber('id');
 });
 
 // ── Inventaires (comptage physique) ──
@@ -178,4 +181,16 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('charges/{id}', [\App\Http\Controllers\Api\ChargeController::class, 'show'])->whereNumber('id');
     Route::put('charges/{id}', [\App\Http\Controllers\Api\ChargeController::class, 'update'])->whereNumber('id');
     Route::delete('charges/{id}', [\App\Http\Controllers\Api\ChargeController::class, 'destroy'])->whereNumber('id');
+});
+
+// ── Retours clients et fournisseurs, activité des utilisateurs ──
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('retours-clients', [\App\Http\Controllers\Api\RetourGestionController::class, 'retoursClients']);
+    Route::post('retours-clients', [\App\Http\Controllers\Api\RetourGestionController::class, 'creerRetourClient']);
+    Route::get('retours-clients/{numero}', [\App\Http\Controllers\Api\RetourGestionController::class, 'retourClient']);
+    Route::get('ventes/{id}/retournable', [\App\Http\Controllers\Api\RetourGestionController::class, 'venteRetournable'])->whereNumber('id');
+    Route::get('retours-fournisseurs', [\App\Http\Controllers\Api\RetourGestionController::class, 'retoursFournisseurs']);
+    Route::post('retours-fournisseurs', [\App\Http\Controllers\Api\RetourGestionController::class, 'creerRetourFournisseur']);
+    Route::get('retours-fournisseurs/{id}', [\App\Http\Controllers\Api\RetourGestionController::class, 'retourFournisseur'])->whereNumber('id');
+    Route::get('m/utilisateurs/{id}/activite', [\App\Http\Controllers\Api\MobileController::class, 'activiteUtilisateur'])->whereNumber('id');
 });
