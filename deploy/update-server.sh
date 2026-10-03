@@ -4,7 +4,7 @@
 set -euo pipefail
 APP=/home/optizaworks/apps/ges-boulf
 PHP=/opt/cpanel/ea-php83/root/usr/bin/php
-COMPOSER=/opt/cpanel/composer/bin/composer
+COMPOSER=/usr/local/bin/composer
 run() { sudo -u optizaworks "$@"; }
 
 cd "$APP"
