@@ -18,7 +18,7 @@ class SousCategorieController extends CrudController
         'name_ar' => ['nullable', 'string', 'max:100'],
         'name_fr' => ['nullable', 'string', 'max:100'],
         'description' => ['nullable', 'string'],
-        'image' => ['required', 'image'],
+        'image' => ['nullable', 'image'],
     ];
 
     protected array $updateRules = [
@@ -63,9 +63,12 @@ class SousCategorieController extends CrudController
         $model->fill($data);
         $model->save();
 
-        $path = $imageFile->store('sous_categories/' . $model->id, 'public');
-        $model->image = Storage::url($path);
-        $model->save();
+        // Photo facultative à la création (ajoutable ensuite).
+        if ($imageFile) {
+            $path = $imageFile->store('sous_categories/' . $model->id, 'public');
+            $model->image = Storage::url($path);
+            $model->save();
+        }
 
         $this->logAction('create', $model->getTable(), (int) $model->getKey(), $data);
         $model->load($this->with);

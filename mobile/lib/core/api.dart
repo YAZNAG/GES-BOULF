@@ -96,6 +96,20 @@ class ApiClient {
   Future<dynamic> delete(String path, [Map<String, dynamic>? query]) =>
       _send(() => _http.delete(uri(path, query), headers: _headers));
 
+  /// Envoi multipart (champs + photo facultative), toujours en POST.
+  /// Pour une modification Laravel, passer `_method: PUT` dans les champs.
+  Future<dynamic> multipart(String path, Map<String, Object?> fields, {File? file, String fileField = 'image'}) {
+    return _send(() async {
+      final req = http.MultipartRequest('POST', uri(path));
+      req.headers.addAll({'Accept': 'application/json', if (token != null) 'Authorization': 'Bearer $token'});
+      fields.forEach((k, v) {
+        if (v != null && '$v'.isNotEmpty) req.fields[k] = '$v';
+      });
+      if (file != null) req.files.add(await http.MultipartFile.fromPath(fileField, file.path));
+      return http.Response.fromStream(await _http.send(req));
+    });
+  }
+
   /// Liste paginée : `mapper` convertit chaque élément.
   Future<Paginated<T>> page<T>(String path, T Function(Json) mapper,
       {Map<String, dynamic>? query, int page = 1, int perPage = 25}) async {

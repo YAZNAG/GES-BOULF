@@ -18,7 +18,7 @@ class CategoryController extends CrudController
         'name_fr' => ['nullable', 'string', 'max:100'],
         'description' => ['nullable', 'string'],
         'famille_id' => ['nullable', 'exists:familles,id'],
-        'image' => ['required', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+        'image' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
     ];
 
     protected array $updateRules = [
@@ -64,10 +64,13 @@ class CategoryController extends CrudController
         $model->fill($data);
         $model->save();
 
-        $path = $imageFile->store('categories/' . $model->id, 'public');
+        // Photo facultative à la création (ajoutable ensuite).
+        if ($imageFile) {
+            $path = $imageFile->store('categories/' . $model->id, 'public');
 
-        $model->image = Storage::url($path);
-        $model->save();
+            $model->image = Storage::url($path);
+            $model->save();
+        }
 
         $this->logAction('create', $model->getTable(), (int) $model->getKey(), $data);
 

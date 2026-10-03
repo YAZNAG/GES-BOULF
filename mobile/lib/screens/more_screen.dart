@@ -5,6 +5,7 @@ import '../widgets/common.dart';
 import 'about_screen.dart';
 import 'admin/settings_screens.dart';
 import 'admin/users_screens.dart';
+import 'catalog/catalog_admin_screens.dart';
 import 'clients/clients_screens.dart';
 import 'purchases/orders_screens.dart';
 import 'purchases/receipts_screens.dart';
@@ -38,6 +39,10 @@ class MoreScreen extends StatelessWidget {
         ('Bons de commande', 'Créer, confirmer, suivre', Icons.receipt_long_outlined, AppColors.info, () => const OrdersScreen()),
         ('Bons de réception', 'Entrées de marchandises', Icons.move_to_inbox_outlined, AppColors.success, () => const ReceiptsScreen()),
         ('Paiements fournisseurs', 'Historique des règlements', Icons.history, AppColors.violet, () => const SupplierPaymentsScreen()),
+      ]),
+      ('Catalogue', [
+        ('Familles & catégories', 'Familles, catégories, sous-catégories', Icons.account_tree_outlined, AppColors.primary,
+            () => const CatalogAdminScreen()),
       ]),
       ('Stock', [
         ('Stock', 'Quantités, seuils, valeur', Icons.warehouse_outlined, AppColors.teal, () => const StockScreen()),

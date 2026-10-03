@@ -7,6 +7,7 @@ import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
 import '../../widgets/pickers.dart';
 import '../../widgets/scanner.dart';
+import 'product_create_screen.dart';
 import 'product_detail_screen.dart';
 import 'quick_add_screen.dart';
 
@@ -192,6 +193,15 @@ class _ProductsScreenState extends State<ProductsScreen> {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
+      floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'produit-ajout',
+        onPressed: () async {
+          final a = await context.push<Json>(const ProductCreateScreen());
+          if (a != null) _list.currentState?.reload();
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('Ajouter'),
+      ),
       appBar: darkAppBar('Produits', actions: [
         PopupMenuButton<String>(
           tooltip: 'Trier',

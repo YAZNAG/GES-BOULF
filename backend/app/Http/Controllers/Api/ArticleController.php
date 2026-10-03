@@ -121,16 +121,20 @@ class ArticleController extends CrudController
     public function rapide(Request $request)
     {
         $data = $request->validate([
-            'code_article' => ['required', 'string', 'max:50', 'unique:articles,code_article'],
+            'code_article' => ['nullable', 'string', 'max:50', 'unique:articles,code_article'],
             'name_fr' => ['required', 'string', 'max:150'],
             'name_ar' => ['nullable', 'string', 'max:150'],
             'marque' => ['nullable', 'string', 'max:100'],
             'sous_categorie_id' => ['required', 'integer', 'exists:sous_categories,id'],
             'image_url' => ['nullable', 'url', 'max:500'],
+            'image' => ['nullable', 'image', 'max:10240'],
             'prix_vente' => ['required', 'numeric', 'gt:0'],
             'prix_achat' => ['nullable', 'numeric', 'min:0'],
             'unite' => ['nullable', 'string', 'max:20', 'exists:unites,nom'],
         ]);
+
+        // Produit sans code-barres (vrac, produit maison…) : code interne EAN-13 imprimable en étiquette.
+        $data['code_article'] = trim((string) ($data['code_article'] ?? '')) ?: $this->codeInterne();
 
         $article = \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
             $marqueId = null;
@@ -157,8 +161,13 @@ class ArticleController extends CrudController
             return $article;
         });
 
-        // Photo : téléchargée seulement depuis les bases ouvertes connues (pas d'URL arbitraire).
-        if (! empty($data['image_url']) && preg_match('#^https://images\.open(food|beauty|products)facts\.org/#', $data['image_url'])) {
+        // Photo prise avec le téléphone…
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('articles/'.$article->id, 'public');
+            $article->update(['image' => Storage::url($path)]);
+        }
+        // … ou téléchargée depuis les bases ouvertes connues (pas d'URL arbitraire).
+        elseif (! empty($data['image_url']) && preg_match('#^https://images\.open(food|beauty|products)facts\.org/#', $data['image_url'])) {
             try {
                 $img = \Illuminate\Support\Facades\Http::timeout(15)->get($data['image_url']);
                 if ($img->ok() && str_starts_with((string) $img->header('Content-Type'), 'image/') && strlen($img->body()) < 5_000_000) {
@@ -174,6 +183,26 @@ class ArticleController extends CrudController
         $this->logAction('create', 'articles', (int) $article->id, ['source' => 'ajout rapide', 'code' => $article->code_article]);
 
         return response()->json($article->load($this->with), 201);
+    }
+
+    /**
+     * Code interne au format EAN-13 avec préfixe 20 (réservé à l'usage interne des magasins) :
+     * 20 + 10 chiffres + clé de contrôle. Unique et scannable comme un vrai code-barres.
+     */
+    private function codeInterne(): string
+    {
+        $n = (int) Article::query()->max('id') + 1;
+        do {
+            $base = '20'.str_pad((string) $n, 10, '0', STR_PAD_LEFT);
+            $sum = 0;
+            foreach (str_split($base) as $i => $d) {
+                $sum += (int) $d * ($i % 2 ? 3 : 1);
+            }
+            $code = $base.((10 - $sum % 10) % 10);
+            $n++;
+        } while (Article::query()->where('code_article', $code)->exists());
+
+        return $code;
     }
 
     private function applyFilters($query, Request $request): void

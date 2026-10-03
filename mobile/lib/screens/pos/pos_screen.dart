@@ -18,11 +18,16 @@ import 'checkout_screen.dart';
 class CartItem {
   CartItem(this.article, [this.quantity = 1]);
 
-  final Json article;
+  Json article;
   double quantity;
 
+  /// Prix accordé pour cette vente seulement (remise, prix négocié) ; null = prix du catalogue.
+  double? priceOverride;
+
   int get id => article.integer('id');
-  double get unitPrice => article.sellPrice;
+  double get catalogPrice => article.sellPrice;
+  bool get priceChanged => priceOverride != null && priceOverride != catalogPrice;
+  double get unitPrice => priceOverride ?? catalogPrice;
   double get total => round2(unitPrice * quantity);
 }
 
@@ -290,6 +295,150 @@ class _PosScreenState extends State<PosScreen> {
     });
   }
 
+  /// Détail d'une ligne du panier : photo, infos, prix pour cette vente, prix du catalogue.
+  Future<void> _showDetail(CartItem item) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      backgroundColor: Colors.white,
+      builder: (sheet) => StatefulBuilder(builder: (sheet, setSheet) {
+        final a = item.article;
+        final ar = a.articleNameAr;
+        final url = context.api.imageUrl(a['image']);
+        void refresh() {
+          setSheet(() {});
+          if (mounted) setState(() {});
+        }
+
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Center(
+                child: Container(
+                  width: 190,
+                  height: 190,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: url != null
+                      ? Image.network(url, fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) => const Icon(Icons.inventory_2_outlined, size: 56, color: AppColors.muted))
+                      : const Icon(Icons.inventory_2_outlined, size: 56, color: AppColors.muted),
+                ),
+              ),
+              const SizedBox(height: 14),
+              if (a.brandName != null)
+                Text(a.brandName!.toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 0.6)),
+              Text(a.articleName, textAlign: TextAlign.center, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+              if (ar != null) Padding(padding: const EdgeInsets.only(top: 4), child: Center(child: ArabicText(ar))),
+              const SizedBox(height: 14),
+              InfoRow('Code-barres', a.barcode),
+              if (a.subCategoryName != null) InfoRow('Catégorie', a.subCategoryName!),
+              InfoRow('Stock', a.stockQty == null ? '—' : qty(a.stockQty, a.unit)),
+              InfoRow('Prix du catalogue', money(item.catalogPrice)),
+              InfoRow('Quantité', qty(item.quantity, a.unit)),
+              const Divider(height: 24),
+              Row(children: [
+                const Expanded(child: Text('Prix pour cette vente', style: TextStyle(fontWeight: FontWeight.w700))),
+                Text(money(item.unitPrice),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: item.priceChanged ? AppColors.warning : AppColors.ink)),
+              ]),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () async {
+                  final v = await _askPrice(item);
+                  if (v == null) return;
+                  item.priceOverride = (v - item.catalogPrice).abs() < 0.005 ? null : v;
+                  refresh();
+                },
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Changer le prix pour cette vente'),
+              ),
+              if (item.priceChanged) ...[
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    item.priceOverride = null;
+                    refresh();
+                  },
+                  icon: const Icon(Icons.undo),
+                  label: const Text('Revenir au prix du catalogue'),
+                ),
+              ],
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  // Modifie le tarif de l'article pour toutes les ventes (PUT tarifs/{id}).
+                  final ok = await editPrices(context, a);
+                  if (!ok) return;
+                  final fresh = await _reload(item.id);
+                  if (fresh != null) {
+                    item.article = fresh;
+                    item.priceOverride = null;
+                    _byCode.removeWhere((_, v) => v.integer('id') == item.id);
+                  }
+                  refresh();
+                },
+                icon: const Icon(Icons.sell_outlined),
+                label: const Text('Modifier le prix du produit (catalogue)'),
+              ),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+                onPressed: () {
+                  Navigator.pop(sheet);
+                  _remove(item);
+                },
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Retirer du panier'),
+              ),
+            ]),
+          ),
+        );
+      }),
+    );
+  }
+
+  Future<double?> _askPrice(CartItem item) async {
+    final ctrl = TextEditingController(text: priceInput(item.unitPrice));
+    final v = await showDialog<double>(
+      context: context,
+      builder: (c) => AlertDialog(
+        title: const Text('Prix pour cette vente'),
+        content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Text('Prix du catalogue : ${money(item.catalogPrice)}', style: const TextStyle(color: AppColors.muted)),
+          const SizedBox(height: 12),
+          TextField(
+            controller: ctrl,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+                labelText: 'Prix unitaire', suffixText: item.article.unit.isEmpty ? 'DH' : 'DH / ${item.article.unit}'),
+            onSubmitted: (t) => Navigator.pop(c, parseInput(t)),
+          ),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annuler')),
+          FilledButton(onPressed: () => Navigator.pop(c, parseInput(ctrl.text)), child: const Text('Appliquer')),
+        ],
+      ),
+    );
+    ctrl.dispose();
+    if (v == null) return null;
+    if (v <= 0) {
+      if (mounted) showInfo(context, 'Le prix doit être supérieur à 0.');
+      return null;
+    }
+    return round2(v);
+  }
+
   void _remove(CartItem item) {
     final index = _cart.indexOf(item);
     setState(() => _cart.remove(item));
@@ -443,16 +592,35 @@ class _PosScreenState extends State<PosScreen> {
         if (i == _cart.length) {
           return const Padding(
             padding: EdgeInsets.only(top: 6),
-            child: Text('Glissez une ligne vers la gauche pour la retirer.',
+            child: Text('Glissez à gauche pour retirer · à droite pour le détail et le prix.',
                 textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 12)),
           );
         }
         final item = _cart[i];
         return Dismissible(
           key: ObjectKey(item),
-          direction: DismissDirection.endToStart,
+          direction: DismissDirection.horizontal,
+          // Vers la droite : détail du produit (la ligne reste) ; vers la gauche : retrait.
+          confirmDismiss: (dir) async {
+            if (dir == DismissDirection.startToEnd) {
+              _showDetail(item);
+              return false;
+            }
+            return true;
+          },
           onDismissed: (_) => _remove(item),
           background: Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            alignment: Alignment.centerLeft,
+            decoration: BoxDecoration(color: AppColors.info, borderRadius: BorderRadius.circular(18)),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.info_outline, color: Colors.white),
+              SizedBox(width: 6),
+              Text('Détail · prix', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            ]),
+          ),
+          secondaryBackground: Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 20),
             alignment: Alignment.centerRight,
@@ -489,10 +657,17 @@ class _PosScreenState extends State<PosScreen> {
               Text(a.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
               if (ar != null) Align(alignment: Alignment.centerLeft, child: ArabicText(ar, maxLines: 1)),
               const SizedBox(height: 2),
-              Row(children: [
+              Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 6, children: [
+                if (item.priceChanged)
+                  Text(money(item.catalogPrice),
+                      style: const TextStyle(color: AppColors.muted, fontSize: 12, decoration: TextDecoration.lineThrough)),
                 Text('${money(item.unitPrice)}${a.unit.isNotEmpty ? ' / ${a.unit}' : ''}',
-                    style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
-                if (a.hasPromo) ...[const SizedBox(width: 6), const Badge2('Promo', color: AppColors.primary)],
+                    style: TextStyle(
+                        color: item.priceChanged ? AppColors.warning : AppColors.muted,
+                        fontSize: 12.5,
+                        fontWeight: item.priceChanged ? FontWeight.w700 : FontWeight.w400)),
+                if (item.priceChanged) const Badge2('Prix modifié', color: AppColors.warning),
+                if (!item.priceChanged && a.hasPromo) const Badge2('Promo', color: AppColors.primary),
               ]),
             ]),
           ),
