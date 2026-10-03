@@ -214,37 +214,35 @@ class _PosScreenState extends State<PosScreen> {
     _tryAdd(article);
   }
 
+  /// Scan caméra : un code à la fois, la caméra se ferme et on revient au panier.
   Future<void> _scan() async {
     FocusScope.of(context).unfocus();
-    final api = context.api;
-    final nav = Navigator.of(context);
-    String? inconnu;
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ScannerPage(
-          title: 'Scanner les articles',
-          onCode: (code) async {
-            try {
-              final a = await lookupArticle(api, code);
-              if (a == null) {
-                // On ferme la caméra et on propose l'ajout du produit.
-                inconnu = code;
-                nav.pop();
-                return null;
-              }
-              final err = _add(a);
-              if (err != null) return '!$err';
-              final line = _cart.firstWhere((c) => c.id == a.integer('id'));
-              return '${a.articleName} × ${qty(line.quantity)} — total ${money(_total)}';
-            } on ApiException catch (e) {
-              return '!${e.message}';
-            }
-          },
-        ),
-      ),
-    );
-    if (inconnu != null && mounted) await _unknownCode(inconnu!);
+    final code = await ScannerPage.scan(context, title: 'Scanner un article');
+    if (code == null || !mounted) return;
+    try {
+      final a = _byCode[code] ?? await runBusy<Json?>(context, () => lookupArticle(context.api, code));
+      if (!mounted) return;
+      if (a == null) {
+        await _unknownCode(code);
+        return;
+      }
+      _byCode[code] = a;
+      final err = _add(a);
+      if (err != null) {
+        _tryAdd(a); // affiche le message (inactif, non tarifé) avec le raccourci « Tarifer »
+        return;
+      }
+      final line = _cart.firstWhere((c) => c.id == a.integer('id'));
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          duration: const Duration(seconds: 2),
+          content: Text('${a.articleName} × ${qty(line.quantity)} — total ${money(_total)}'),
+          action: SnackBarAction(label: 'SCANNER', onPressed: _scan),
+        ));
+    } catch (e) {
+      if (mounted) showError(context, e);
+    }
   }
 
   Future<void> _editQty(CartItem item) async {
