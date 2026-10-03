@@ -1,0 +1,63 @@
+.prix-card {
+  margin-top: 16px;
+  background: #ffffff;
+  border: 1px solid #eef2f7;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.prix-card-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.prix-card-title {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.prix-table-wrap {
+  width: 100%;
+  overflow: auto;
+}
+
+.prix-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 820px;
+}
+
+.prix-table th,
+.prix-table td {
+  padding: 14px 16px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 13px;
+}
+
+.prix-table th {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 800;
+  background: #ffffff;
+}
+
+.prix-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-start;
+}
+
+.prix-empty {
+  padding: 18px 16px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.prix-empty-cell {
+  padding: 18px 16px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 13px;
+}
