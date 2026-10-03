@@ -11,6 +11,7 @@ import '../../widgets/price_editor.dart';
 import '../../widgets/scanner.dart';
 import '../products/product_detail_screen.dart';
 import '../../widgets/unknown_product.dart';
+import '../../widgets/category_filter.dart';
 
 /// Tarifs de vente : prix d'achat / vente / gros / promo et marge, modification rapide.
 class TarifsScreen extends StatefulWidget {
@@ -26,6 +27,7 @@ class _TarifsScreenState extends State<TarifsScreen> {
   final _list = GlobalKey<PagedListState<Json>>();
   late String? _statut = widget.initialStatut;
   String _sort = 'nom';
+  CategoryFilter? _cat;
 
   void _setStatut(String? s) {
     setState(() => _statut = s);
@@ -70,6 +72,15 @@ class _TarifsScreenState extends State<TarifsScreen> {
         emptyIcon: Icons.sell_outlined,
         emptyTitle: 'Aucun article',
         filters: FilterChips<String>(
+          leading: [
+            CategoryFilterChip(
+              value: _cat,
+              onChanged: (c) {
+                setState(() => _cat = c);
+                _list.currentState?.reload();
+              },
+            ),
+          ],
           options: const [
             (null, 'Tous'),
             ('tarife', 'Tarifés'),
@@ -92,7 +103,7 @@ class _TarifsScreenState extends State<TarifsScreen> {
             MiniStat(label: 'Marge moy.', value: s['marge_moyenne'] == null ? '—' : percent(s['marge_moyenne'])),
           ]);
         },
-        fetch: (page, q) => api.page('tarifs', (j) => j, page: page, query: {'q': q, 'statut': _statut, 'sort': _sort}),
+        fetch: (page, q) => api.page('tarifs', (j) => j, page: page, query: {'q': q, 'statut': _statut, 'sort': _sort, ...?_cat?.query}),
         itemBuilder: (ctx, a, reload) => _TarifTile(
           article: a,
           onEdit: () async {

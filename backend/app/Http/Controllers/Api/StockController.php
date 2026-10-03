@@ -97,6 +97,9 @@ class StockController extends CrudController
             'rupture' => $query->where('stock.quantite', '<=', 0)->where('articles.actif', true),
             default => null,
         };
+        if ($request->filled('sous_categorie_id')) {
+            $query->where('articles.sous_categorie_id', $request->query('sous_categorie_id'));
+        }
         if ($request->filled('categorie_id')) {
             $query->whereHas('article.sousCategorie', fn ($s) => $s->where('categorie_id', $request->query('categorie_id')));
         }

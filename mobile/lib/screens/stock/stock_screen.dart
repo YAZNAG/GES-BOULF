@@ -11,6 +11,7 @@ import '../../widgets/scanner.dart';
 import '../../widgets/stock_adjust.dart';
 import '../products/product_detail_screen.dart';
 import '../../widgets/unknown_product.dart';
+import '../../widgets/category_filter.dart';
 
 /// Articles en stock (quantités, seuils, valeur), avec ajustement rapide.
 class StockScreen extends StatefulWidget {
@@ -25,6 +26,7 @@ class StockScreen extends StatefulWidget {
 class _StockScreenState extends State<StockScreen> {
   final _list = GlobalKey<PagedListState<Json>>();
   late String? _statut = widget.initialStatut;
+  CategoryFilter? _cat;
   String _sort = 'nom';
 
   void _setStatut(String? s) {
@@ -69,6 +71,15 @@ class _StockScreenState extends State<StockScreen> {
         emptyIcon: Icons.warehouse_outlined,
         emptyTitle: 'Aucun article',
         filters: FilterChips<String>(
+          leading: [
+            CategoryFilterChip(
+              value: _cat,
+              onChanged: (c) {
+                setState(() => _cat = c);
+                _list.currentState?.reload();
+              },
+            ),
+          ],
           options: const [(null, 'Tous'), ('en_stock', 'En stock'), ('sous_seuil', 'Sous le seuil'), ('rupture', 'En rupture')],
           value: _statut,
           onChanged: _setStatut,
@@ -89,7 +100,7 @@ class _StockScreenState extends State<StockScreen> {
           ]);
         },
         fetch: (page, q) => api.page('stock', (j) => j,
-            page: page, query: {'q': q, 'statut': _statut, 'sort': _sort, 'with_stats': page == 1 ? 1 : null}),
+            page: page, query: {'q': q, 'statut': _statut, 'sort': _sort, 'with_stats': page == 1 ? 1 : null, ...?_cat?.query}),
         itemBuilder: (ctx, s, reload) {
           final a = s.obj('article') ?? {};
           final q = s.dbl('quantite');

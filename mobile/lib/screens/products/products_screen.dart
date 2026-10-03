@@ -10,139 +10,9 @@ import '../../widgets/scanner.dart';
 import 'product_create_screen.dart';
 import 'product_detail_screen.dart';
 import '../../widgets/unknown_product.dart';
+import '../../widgets/category_filter.dart';
 
 /// Filtre de catégorie choisi (famille ou catégorie).
-class CategoryFilter {
-  const CategoryFilter({this.familleId, this.categorieId, required this.label});
-
-  final int? familleId;
-  final int? categorieId;
-  final String label;
-}
-
-/// Feuille de choix famille → catégorie.
-Future<CategoryFilter?> pickCategoryFilter(BuildContext context) {
-  return showModalBottomSheet<CategoryFilter>(
-    context: context,
-    isScrollControlled: true,
-    builder: (c) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.7,
-      maxChildSize: 0.92,
-      builder: (ctx, scroll) => _CategorySheet(scroll: scroll),
-    ),
-  );
-}
-
-class _CategorySheet extends StatefulWidget {
-  const _CategorySheet({required this.scroll});
-
-  final ScrollController scroll;
-
-  @override
-  State<_CategorySheet> createState() => _CategorySheetState();
-}
-
-class _CategorySheetState extends State<_CategorySheet> {
-  List<Json>? _familles;
-  Json? _famille;
-  List<Json>? _categories;
-  Object? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFamilles();
-  }
-
-  Future<void> _loadFamilles() async {
-    try {
-      final r = await context.api.get('familles', {'per_page': 200}) as Json;
-      if (mounted) setState(() => _familles = r.list('data'));
-    } catch (e) {
-      if (mounted) setState(() => _error = e);
-    }
-  }
-
-  Future<void> _openFamille(Json f) async {
-    setState(() {
-      _famille = f;
-      _categories = null;
-    });
-    try {
-      final r = await context.api.get('categories', {'per_page': 1000, 'famille_id': f.integer('id')}) as Json;
-      if (mounted) setState(() => _categories = r.list('data'));
-    } catch (e) {
-      if (mounted) setState(() => _error = e);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final f = _famille;
-    final list = f == null ? _familles : _categories;
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(8, 0, 16, 8),
-        child: Row(children: [
-          if (f != null)
-            IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() => _famille = null))
-          else
-            const SizedBox(width: 12),
-          Expanded(
-            child: Text(f == null ? 'Familles' : f.str('nom_fr'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-          ),
-          if (f == null)
-            TextButton(
-              onPressed: () => Navigator.pop(context, const CategoryFilter(label: 'Toutes')),
-              child: const Text('Tout afficher'),
-            ),
-        ]),
-      ),
-      const Divider(height: 1),
-      Expanded(
-        child: list == null
-            ? (_error != null
-                ? ErrorState(error: _error!, onRetry: () {
-                    setState(() => _error = null);
-                    f == null ? _loadFamilles() : _openFamille(f);
-                  })
-                : const Center(child: CircularProgressIndicator()))
-            : ListView(controller: widget.scroll, children: [
-                if (f != null)
-                  ListTile(
-                    leading: const IconSquare(Icons.select_all),
-                    title: Text('Toute la famille « ${f.str('nom_fr')} »', style: const TextStyle(fontWeight: FontWeight.w700)),
-                    onTap: () => Navigator.pop(context, CategoryFilter(familleId: f.integer('id'), label: f.str('nom_fr'))),
-                  ),
-                for (final it in list)
-                  ListTile(
-                    leading: ItemThumb(path: it['image'], label: it.str('nom_fr', it.str('name_fr', it.str('nom'))), size: 42),
-                    title: Text(it.str('nom_fr', it.str('name_fr', it.str('nom'))), style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: (it.strOrNull('nom_ar') ?? it.strOrNull('name_ar')) == null
-                        ? null
-                        : Align(alignment: Alignment.centerLeft, child: ArabicText(it.strOrNull('nom_ar') ?? it.str('name_ar'))),
-                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text(qty(it['articles_count']), style: const TextStyle(color: AppColors.muted)),
-                      if (f == null) const Icon(Icons.chevron_right),
-                    ]),
-                    onTap: () => f == null
-                        ? _openFamille(it)
-                        : Navigator.pop(
-                            context,
-                            CategoryFilter(
-                              familleId: f.integer('id'),
-                              categorieId: it.integer('id'),
-                              label: it.str('name_fr', it.str('nom')),
-                            )),
-                  ),
-              ]),
-      ),
-    ]);
-  }
-}
-
 /// Liste des produits (recherche code-barres / FR / AR, scan, filtres).
 class ProductsScreen extends StatefulWidget {
   const ProductsScreen({super.key});
@@ -173,10 +43,8 @@ class _ProductsScreenState extends State<ProductsScreen> {
     _list.currentState?.reload();
   }
 
-  Future<void> _pickCat() async {
-    final c = await pickCategoryFilter(context);
-    if (c == null) return;
-    setState(() => _cat = c.familleId == null ? null : c);
+  void _setCat(CategoryFilter? c) {
+    setState(() => _cat = c);
     _list.currentState?.reload();
   }
 
@@ -222,26 +90,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
         emptyIcon: Icons.inventory_2_outlined,
         emptyTitle: 'Aucun produit',
         filters: FilterChips<String>(
-          leading: [
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: InputChip(
-                avatar: Icon(Icons.category_outlined, size: 18, color: _cat != null ? AppColors.primary : AppColors.muted),
-                label: Text(_cat?.label ?? 'Catégorie'),
-                selected: _cat != null,
-                showCheckmark: false,
-                selectedColor: AppColors.primary.withValues(alpha: 0.12),
-                side: BorderSide(color: _cat != null ? AppColors.primary : AppColors.border),
-                onPressed: _pickCat,
-                onDeleted: _cat == null
-                    ? null
-                    : () {
-                        setState(() => _cat = null);
-                        _list.currentState?.reload();
-                      },
-              ),
-            ),
-          ],
+          leading: [CategoryFilterChip(value: _cat, onChanged: _setCat)],
           options: const [(null, 'Tous'), ('actif', 'Actifs'), ('a_tarifer', 'À tarifer'), ('rupture', 'En rupture'), ('inactif', 'Inactifs')],
           value: _statut,
           onChanged: _setStatut,
@@ -260,8 +109,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
           'q': q,
           'statut': _statut,
           'sort': _sort,
-          'famille_id': _cat?.familleId,
-          'categorie_id': _cat?.categorieId,
+          ...?_cat?.query,
           'with_stats': page == 1 ? 1 : null,
         }),
         itemBuilder: (ctx, a, reload) => ArticleTile(

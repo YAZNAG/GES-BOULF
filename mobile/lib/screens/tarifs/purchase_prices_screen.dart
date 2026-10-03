@@ -11,6 +11,7 @@ import '../../widgets/price_editor.dart';
 import '../../widgets/scanner.dart';
 import '../products/product_detail_screen.dart';
 import '../../widgets/unknown_product.dart';
+import '../../widgets/category_filter.dart';
 
 /// Prix d'achat des articles, avec le dernier achat (bon de réception) et la recherche FR / AR / code-barres.
 class PurchasePricesScreen extends StatefulWidget {
@@ -24,6 +25,7 @@ class _PurchasePricesScreenState extends State<PurchasePricesScreen> {
   final _list = GlobalKey<PagedListState<Json>>();
   String? _statut;
   String _sort = 'nom';
+  CategoryFilter? _cat;
 
   Future<void> _scan() async {
     final code = await ScannerPage.scan(context);
@@ -94,6 +96,15 @@ class _PurchasePricesScreenState extends State<PurchasePricesScreen> {
         emptyIcon: Icons.shopping_bag_outlined,
         emptyTitle: 'Aucun article',
         filters: FilterChips<String>(
+          leading: [
+            CategoryFilterChip(
+              value: _cat,
+              onChanged: (c) {
+                setState(() => _cat = c);
+                _list.currentState?.reload();
+              },
+            ),
+          ],
           options: const [(null, 'Tous'), ('sans_achat', 'Sans prix d’achat')],
           value: _statut,
           onChanged: (s) {
@@ -102,7 +113,7 @@ class _PurchasePricesScreenState extends State<PurchasePricesScreen> {
           },
         ),
         fetch: (page, q) => api.page('tarifs', (j) => j,
-            page: page, query: {'q': q, 'statut': _statut, 'sort': _sort, 'with_dernier_achat': 1}),
+            page: page, query: {'q': q, 'statut': _statut, 'sort': _sort, 'with_dernier_achat': 1, ...?_cat?.query}),
         itemBuilder: (ctx, a, reload) => _tile(ctx, a, reload),
       ),
     );
