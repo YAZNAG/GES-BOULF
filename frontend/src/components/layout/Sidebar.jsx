@@ -138,7 +138,7 @@ export default function Sidebar({ open, onClose, onLogout }) {
           </NavLink>
           <NavLink className={navItemClass} to="/admin/prix">
             <CircleDollarSign className="nav-icon" size={18} />
-            Prix
+            Tarifs de vente
           </NavLink>
         </div>
 

@@ -79,6 +79,25 @@ class ArticleController extends CrudController
         return response()->json($page);
     }
 
+    /**
+     * Recherche exacte par code-barres (EAN) ou code article — caisse et réceptions.
+     * GET /api/articles/lookup?code=6111…
+     */
+    public function lookup(Request $request)
+    {
+        $code = trim((string) $request->query('code', ''));
+        abort_if($code === '', 422, 'Code manquant.');
+        $article = Article::query()->with(['sousCategorie', 'marque', 'prix', 'stock'])
+            ->where('code_article', $code)
+            ->first();
+        // Lecteurs qui ajoutent ou retirent le zéro initial (UPC-A ↔ EAN-13).
+        $article ??= Article::query()->with(['sousCategorie', 'marque', 'prix', 'stock'])
+            ->whereIn('code_article', array_unique([ltrim($code, '0'), '0'.$code]))
+            ->first();
+
+        return $article ? response()->json($article) : response()->json(['message' => "Aucun article pour le code {$code}."], 404);
+    }
+
     private function applyFilters($query, Request $request): void
     {
         if ($q = trim((string) $request->query('q', ''))) {

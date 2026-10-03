@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AchatController;
 use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
@@ -75,6 +76,7 @@ Route::middleware(['auth:sanctum', 'permission:utilisateurs.manage|systeme.setti
 Route::apiResource('categories', CategoryController::class);
 Route::apiResource('sous_categories', SousCategorieController::class);
 Route::apiResource('familles', FamilleController::class);
+Route::get('articles/lookup', [ArticleController::class, 'lookup']);
 Route::apiResource('articles', ArticleController::class);
 Route::apiResource('prix_articles', PrixArticleController::class);
 Route::apiResource('unites', UniteController::class);
@@ -115,4 +117,30 @@ Route::middleware(['auth:sanctum', 'permission:packs.manage|systeme.settings'])-
     Route::put('packs/{pack}', [PackController::class, 'update']);
     Route::patch('packs/{pack}', [PackController::class, 'update']);
     Route::delete('packs/{pack}', [PackController::class, 'destroy']);
+});
+
+// ── Achats : bons de commande, réceptions (entrées de stock), règlements fournisseurs ──
+Route::middleware('auth:sanctum')->prefix('achats')->group(function () {
+    Route::get('commandes', [AchatController::class, 'commandes']);
+    Route::post('commandes', [AchatController::class, 'enregistrerCommande']);
+    Route::get('commandes/{id}', [AchatController::class, 'commande'])->whereNumber('id');
+    Route::put('commandes/{id}', [AchatController::class, 'enregistrerCommande'])->whereNumber('id');
+    Route::post('commandes/{id}/statut', [AchatController::class, 'statutCommande'])->whereNumber('id');
+    Route::delete('commandes/{id}', [AchatController::class, 'supprimerCommande'])->whereNumber('id');
+
+    Route::get('receptions', [AchatController::class, 'receptions']);
+    Route::post('receptions', [AchatController::class, 'receptionner']);
+    Route::get('receptions/{id}', [AchatController::class, 'reception'])->whereNumber('id');
+
+    Route::get('paiements', [AchatController::class, 'paiements']);
+    Route::post('paiements', [AchatController::class, 'payer']);
+    Route::get('fournisseurs/{id}/releve', [AchatController::class, 'releve'])->whereNumber('id');
+});
+
+// ── Tarifs de vente : tableau des prix, modification en ligne et actions groupées ──
+Route::middleware('auth:sanctum')->prefix('tarifs')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\TarifController::class, 'index']);
+    Route::get('export', [\App\Http\Controllers\Api\TarifController::class, 'export']);
+    Route::post('bulk', [\App\Http\Controllers\Api\TarifController::class, 'bulk']);
+    Route::put('{articleId}', [\App\Http\Controllers\Api\TarifController::class, 'update'])->whereNumber('articleId');
 });

@@ -1,0 +1,70 @@
+/* Tarifs de vente — tableau de prix modifiable */
+.tx-table-wrap { border: 1px solid var(--cx-line); border-radius: 18px; background: #fff; overflow: auto; max-height: calc(100vh - 230px); box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04); }
+.tx-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; min-width: 1180px; }
+.tx-table thead th { position: sticky; top: 0; z-index: 2; background: #f8fafc; text-align: left; font-size: 11.5px; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cx-muted); padding: 11px 10px; border-bottom: 1px solid var(--cx-line); white-space: nowrap; user-select: none; }
+.tx-table thead th.tx-sort { cursor: pointer; }
+.tx-table thead th.tx-sort:hover { color: var(--cx-ink); }
+.tx-table thead th .tx-arrow { opacity: 0.35; margin-left: 4px; }
+.tx-table thead th.tx-sorted { color: var(--cx-red); }
+.tx-table thead th.tx-sorted .tx-arrow { opacity: 1; }
+.tx-table tbody td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.tx-table tbody tr:hover td { background: #fbfcfe; }
+.tx-table tbody tr.tx-selected td { background: #fff7f7; }
+.tx-table tbody tr.tx-off td { opacity: 0.62; }
+.tx-table tbody tr.tx-off td.tx-keep { opacity: 1; }
+.tx-check { width: 38px; text-align: center !important; }
+.tx-check input { width: 16px; height: 16px; accent-color: var(--cx-red); cursor: pointer; }
+.tx-prod { display: flex; align-items: center; gap: 10px; min-width: 260px; max-width: 360px; }
+.tx-prod img, .tx-noimg { width: 42px; height: 42px; border-radius: 10px; object-fit: contain; background: #fff; border: 1px solid #f1f5f9; flex-shrink: 0; }
+.tx-prod-txt { min-width: 0; }
+.tx-prod-brand { font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--cx-red); }
+.tx-prod-name { font-weight: 650; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-prod-ar { font-size: 12px; color: var(--cx-muted); direction: rtl; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; color: #64748b; white-space: nowrap; }
+.tx-cat { font-size: 12.5px; color: #475569; line-height: 1.3; min-width: 150px; max-width: 200px; }
+.tx-cat small { display: block; color: #94a3b8; font-size: 11.5px; }
+.tx-num { text-align: right !important; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Cellule prix modifiable */
+.tx-cell { position: relative; display: inline-flex; align-items: center; }
+.tx-cell input { width: 92px; height: 34px; padding: 0 30px 0 8px; border-radius: 9px; border: 1px solid transparent; background: transparent; text-align: right; font-size: 14px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--cx-ink); transition: border-color 0.12s, background 0.12s, box-shadow 0.12s; }
+.tx-cell::after { content: 'DH'; position: absolute; right: 8px; font-size: 10.5px; font-weight: 700; color: #94a3b8; pointer-events: none; }
+.tx-cell input:hover { border-color: var(--cx-line); background: #fff; }
+.tx-cell input:focus { outline: none; border-color: #fca5a5; background: #fff; box-shadow: 0 0 0 3px rgba(225, 29, 46, 0.1); }
+.tx-cell-vente input { font-weight: 800; color: var(--cx-ink); }
+.tx-cell-empty input { color: #d97706; }
+.tx-cell-empty input::placeholder { color: #f59e0b; font-weight: 700; }
+.tx-cell-saving input { background: #f8fafc; color: #94a3b8; }
+.tx-cell-saved input { background: #ecfdf5; border-color: #bbf7d0; }
+.tx-cell-error input { background: #fef2f2; border-color: #fecaca; }
+.tx-cell-promo input { color: #7c3aed; }
+
+/* Marge */
+.tx-marge { display: inline-flex; align-items: center; justify-content: flex-end; min-width: 64px; height: 24px; padding: 0 9px; border-radius: 999px; font-size: 12.5px; font-weight: 750; font-variant-numeric: tabular-nums; }
+.tx-m-none { background: #f1f5f9; color: #94a3b8; }
+.tx-m-neg { background: #fef2f2; color: #dc2626; }
+.tx-m-low { background: #fffbeb; color: #d97706; }
+.tx-m-ok { background: #ecfdf5; color: #16a34a; }
+.tx-m-high { background: #eff6ff; color: #2563eb; }
+.tx-gain { display: block; font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+/* Interrupteur actif */
+.tx-switch { position: relative; width: 38px; height: 22px; border-radius: 999px; border: 0; background: #cbd5e1; cursor: pointer; transition: background 0.15s; flex-shrink: 0; }
+.tx-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); transition: transform 0.15s; }
+.tx-switch.on { background: #16a34a; }
+.tx-switch.on::after { transform: translateX(16px); }
+
+/* Barre d'actions groupées */
+.tx-bulk { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 12px; border-radius: 16px; background: #0f172a; color: #fff; box-shadow: 0 12px 30px -10px rgba(15, 23, 42, 0.5); animation: cx-fade 0.15s ease; }
+.tx-bulk b { font-size: 14px; }
+.tx-bulk-sep { width: 1px; height: 24px; background: rgba(255, 255, 255, 0.18); }
+.tx-bulk select, .tx-bulk input { height: 34px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.08); color: #fff; padding: 0 10px; font-size: 13.5px; }
+.tx-bulk input { width: 84px; text-align: right; }
+.tx-bulk select option { color: #0f172a; }
+.tx-bulk .cx-btn { height: 34px; }
+.tx-bulk .tx-link { background: none; border: 0; color: rgba(255, 255, 255, 0.7); cursor: pointer; font-size: 13px; text-decoration: underline; }
+
+.tx-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 14px; color: var(--cx-muted); font-size: 13.5px; }
+.tx-foot select { height: 34px; border-radius: 9px; border: 1px solid var(--cx-line); padding: 0 8px; background: #fff; }
+.tx-hint { font-size: 12.5px; color: var(--cx-muted); margin: -4px 0 12px; }
+.tx-hint kbd { font: 600 11px ui-monospace, monospace; border: 1px solid #e2e8f0; border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; background: #fff; }

@@ -42,6 +42,7 @@ class ImportCatalogue extends Command
 
     /** Tables vidées par --reset (ordre : dépendances d'abord). */
     private const RESET_TABLES = [
+        'paiements_fournisseur', 'lignes_reception', 'receptions',
         'paiements', 'factures', 'retours', 'lignes_commande_vente', 'commandes_vente', 'ventes',
         'lignes_commande_achat', 'commandes_achat', 'mouvements_stock', 'sorties', 'pack_items', 'packs',
         'promotions', 'prix_articles', 'stock', 'articles', 'sub_categories', 'sous_categories', 'categories',
