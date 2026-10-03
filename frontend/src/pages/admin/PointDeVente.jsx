@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Trash2, Plus, Minus, User, Monitor, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { usePOS } from '../../features/pos/usePOS';
+import { toast } from '../../lib/toast';
 import '../../styles/pos.css';
 
 export default function PointDeVente() {
@@ -180,6 +181,16 @@ export default function PointDeVente() {
                           e.preventDefault();
                           // Visual feedback
                           toast({ type: 'success', message: `Ajouté: ${exactMatch.nom}` });
+                        } else if (articles.length === 1) {
+                          // Un seul résultat (nom FR/AR, marque) : Entrée l'ajoute directement.
+                          addToCart(articles[0]);
+                          setSearch('');
+                          setIsSidebarOpen(true);
+                          e.preventDefault();
+                        } else if (/^\d{6,14}$/.test(search.trim())) {
+                          toast({ type: 'error', message: `Code ${search.trim()} introuvable ou article non tarifé.` });
+                          setSearch('');
+                          e.preventDefault();
                         }
                       }
                     }}

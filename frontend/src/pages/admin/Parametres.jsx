@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Settings, CreditCard, Bell, Boxes, Plus, Pencil, Trash2, X } from 'lucide-react'
+import { Settings, CreditCard, Bell, Boxes, Plus, Pencil, Tag, Trash2, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth/authContext'
 import { apiFetch } from '../../lib/api'
@@ -10,6 +10,7 @@ import { GeneralSettings } from '../../components/Parametres/GeneralSettings'
 import { BillingSettings } from '../../components/Parametres/BillingSettings'
 import { NotificationSettings } from '../../components/Parametres/NotificationSettings'
 
+import Marques from './Marques'
 import '../../styles/parametres.css'
 
 function UniteModal({ open, mode = 'create', submitting, initialValues, onClose, onSubmit }) {
@@ -517,6 +518,7 @@ export default function Parametres() {
     { id: 'facturation', label: 'Facturation', icon: CreditCard },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'unites', label: 'Unités', icon: Boxes },
+    { id: 'marques', label: 'Marques', icon: Tag },
     { id: 'paiement', label: 'Modes de Paiement', icon: CreditCard },
   ]
 
@@ -584,6 +586,7 @@ export default function Parametres() {
 
 
           {activeTab === 'unites' && <UnitesSettings />}
+          {activeTab === 'marques' && <Marques />}
           {activeTab === 'paiement' && <ModesPaiementSettings />}
         </div>
       </div>

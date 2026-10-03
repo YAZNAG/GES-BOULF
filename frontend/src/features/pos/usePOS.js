@@ -3,11 +3,17 @@ import { apiFetch } from '../../lib/api';
 import { toast } from '../../lib/toast';
 
 function mapArticle(a) {
+  const vente = Number(a?.prix?.prix_vente ?? 0);
+  const promo = Number(a?.prix?.prix_promo ?? 0);
   return {
     id: a.id,
     code_article: a.code_article,
-    nom: a.nom,
-    prix: Number(a?.prix?.prix_vente ?? 0),
+    nom: a.name_fr || a.nom,
+    name_ar: a.name_ar || '',
+    marque: a.marque?.nom || '',
+    // Le prix promo s'applique quand il est renseigné et inférieur au prix normal.
+    prix: promo > 0 && promo < vente ? promo : vente,
+    prix_normal: vente,
     prix_gros: Number(a?.prix?.prix_gros ?? a?.prix?.prix_vente ?? 0),
     stock: Number(a?.stock?.quantite ?? 0),
     img: a.image || '/imagelogin.png',
@@ -35,7 +41,8 @@ export function usePOS() {
     setLoading(true);
     try {
       const [artData, catData, cliData, payData] = await Promise.all([
-        apiFetch('/api/articles?per_page=1000'),
+        // Seuls les articles actifs (tarifés) sont vendables en caisse.
+        apiFetch('/api/articles?per_page=5000&statut=actif'),
         apiFetch('/api/categories?per_page=1000'),
         apiFetch('/api/clients?per_page=1000'),
         apiFetch('/api/mode_paiements?per_page=1000')
@@ -63,7 +70,12 @@ export function usePOS() {
   const filteredArticles = useMemo(() => {
     const q = search.toLowerCase().trim();
     const filtered = articles.filter(a => {
-      const matchSearch = !q || a.nom.toLowerCase().includes(q) || a.code_article.toLowerCase().includes(q);
+      const matchSearch =
+        !q ||
+        a.nom.toLowerCase().includes(q) ||
+        (a.code_article || '').toLowerCase().includes(q) ||
+        a.name_ar.includes(search.trim()) ||
+        a.marque.toLowerCase().includes(q);
       const matchCat = selectedCategory === 'all' || String(a.categorie_id) === String(selectedCategory);
       return matchSearch && matchCat;
     });
@@ -81,6 +93,10 @@ export function usePOS() {
 
   // Cart actions
   const addToCart = useCallback((article) => {
+    if (!(article.prix > 0)) {
+      toast({ type: 'error', message: `« ${article.nom} » n'a pas de prix de vente.` });
+      return;
+    }
     if (article.stock <= 0) {
       toast({ type: 'error', message: `Stock épuisé pour "${article.nom}"` });
       return;
