@@ -19,6 +19,6 @@ run "$PHP" artisan optimize
 cd "$APP/frontend"
 run npm ci --no-audit --no-fund
 run npm run build
-run rsync -a --delete --exclude index.php --exclude .htaccess --exclude storage --exclude robots.txt --exclude favicon.ico \
+run rsync -a --exclude index.php --exclude .htaccess --exclude storage --exclude robots.txt --exclude favicon.ico \
   --exclude build --exclude 'vendor' "$APP/frontend/dist/" "$APP/backend/public/"
 echo "Mise à jour terminée."
