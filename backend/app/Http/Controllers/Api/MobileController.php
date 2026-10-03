@@ -53,6 +53,7 @@ class MobileController extends Controller
                 'ventes' => $ventes($month)->count(),
                 'montant' => round((float) $ventes($month)->sum('montant_total'), 2),
             ],
+            'charges_mois' => round((float) \App\Models\Charge::query()->where('date_charge', '>=', $month->toDateString())->sum('montant'), 2),
             'credit_clients' => round((float) Client::query()->where('solde', '>', 0)->sum('solde'), 2),
             'credit_fournisseurs' => round((float) Fournisseur::query()->where('solde', '>', 0)->sum('solde'), 2),
             'stock' => [

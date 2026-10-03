@@ -1,3 +1,4 @@
+import 'charges/charges_screens.dart';
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
@@ -204,6 +205,21 @@ class DashboardScreen extends StatelessWidget {
                         icon: Icons.local_shipping_outlined,
                         color: AppColors.info,
                         onTap: () => context.push(const SuppliersScreen(creditOnly: true)),
+                      ),
+                      StatTile(
+                        label: 'Charges du mois',
+                        value: moneyShort(d['charges_mois']),
+                        icon: Icons.receipt_long_outlined,
+                        color: AppColors.danger,
+                        onTap: () => context.push(const ChargesScreen()),
+                      ),
+                      StatTile(
+                        label: 'Ventes − charges',
+                        value: moneyShort(mois.dbl('montant') - d.dbl('charges_mois')),
+                        hint: 'ce mois',
+                        icon: Icons.account_balance_wallet_outlined,
+                        color: mois.dbl('montant') - d.dbl('charges_mois') >= 0 ? AppColors.teal : AppColors.danger,
+                        onTap: () => context.push(const ChargesScreen()),
                       ),
                       StatTile(
                         label: 'À tarifer',

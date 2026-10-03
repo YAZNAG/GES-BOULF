@@ -157,3 +157,25 @@ Route::middleware('auth:sanctum')->prefix('m')->group(function () {
     Route::get('clients', [\App\Http\Controllers\Api\MobileController::class, 'clients']);
     Route::get('mouvements', [\App\Http\Controllers\Api\MobileController::class, 'mouvements']);
 });
+
+// ── Inventaires (comptage physique) ──
+Route::middleware('auth:sanctum')->prefix('inventaires')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\InventaireController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\InventaireController::class, 'store']);
+    Route::get('{id}', [\App\Http\Controllers\Api\InventaireController::class, 'show'])->whereNumber('id');
+    Route::post('{id}/compter', [\App\Http\Controllers\Api\InventaireController::class, 'compter'])->whereNumber('id');
+    Route::delete('{id}/lignes/{ligne}', [\App\Http\Controllers\Api\InventaireController::class, 'retirerLigne'])->whereNumber(['id', 'ligne']);
+    Route::post('{id}/valider', [\App\Http\Controllers\Api\InventaireController::class, 'valider'])->whereNumber('id');
+    Route::post('{id}/annuler', [\App\Http\Controllers\Api\InventaireController::class, 'annuler'])->whereNumber('id');
+});
+
+// ── Charges (dépenses du magasin) ──
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('categories_charges', [\App\Http\Controllers\Api\ChargeController::class, 'categories']);
+    Route::post('categories_charges', [\App\Http\Controllers\Api\ChargeController::class, 'ajouterCategorie']);
+    Route::get('charges', [\App\Http\Controllers\Api\ChargeController::class, 'index']);
+    Route::post('charges', [\App\Http\Controllers\Api\ChargeController::class, 'store']);
+    Route::get('charges/{id}', [\App\Http\Controllers\Api\ChargeController::class, 'show'])->whereNumber('id');
+    Route::put('charges/{id}', [\App\Http\Controllers\Api\ChargeController::class, 'update'])->whereNumber('id');
+    Route::delete('charges/{id}', [\App\Http\Controllers\Api\ChargeController::class, 'destroy'])->whereNumber('id');
+});

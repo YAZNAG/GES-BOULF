@@ -6,10 +6,12 @@ import 'about_screen.dart';
 import 'admin/settings_screens.dart';
 import 'admin/users_screens.dart';
 import 'catalog/catalog_admin_screens.dart';
+import 'charges/charges_screens.dart';
 import 'clients/clients_screens.dart';
 import 'purchases/orders_screens.dart';
 import 'purchases/receipts_screens.dart';
 import 'sales/sales_screens.dart';
+import 'stock/inventory_screens.dart';
 import 'stock/movements_screen.dart';
 import 'stock/stock_screen.dart';
 import 'suppliers/suppliers_screens.dart';
@@ -47,6 +49,10 @@ class MoreScreen extends StatelessWidget {
       ('Stock', [
         ('Stock', 'Quantités, seuils, valeur', Icons.warehouse_outlined, AppColors.teal, () => const StockScreen()),
         ('Entrées de stock', 'Mouvements d’entrée', Icons.south_west, AppColors.success, () => const MovementsScreen()),
+        ('Inventaire', 'Comptage du stock, écarts', Icons.fact_check_outlined, AppColors.warning, () => const InventoriesScreen()),
+      ]),
+      ('Finances', [
+        ('Charges', 'Loyer, électricité, salaires…', Icons.receipt_long_outlined, AppColors.danger, () => const ChargesScreen()),
       ]),
       ('Administration', [
         if (s.canAny(const ['utilisateurs.view', 'utilisateurs.manage', 'systeme.settings']))
