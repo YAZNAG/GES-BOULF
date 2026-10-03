@@ -1,328 +1,174 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FolderTree, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { LayoutGrid, Plus, Search } from 'lucide-react'
 import { apiFetch } from '../../lib/api'
-import Alert from '../../components/Alert'
 import ConfirmDialog from '../../components/ConfirmDialog'
-import '../../styles/categories.css'
-
-function FamilleModal({ open, mode = 'create', initialValues, onClose, onSubmit }) {
-  const [nomAr, setNomAr] = useState('')
-  const [nomFr, setNomFr] = useState('')
-  const [file, setFile] = useState(null)
-  const [preview, setPreview] = useState(null)
-
-  useEffect(() => {
-    if (open) {
-      setNomAr(initialValues?.nom_ar ?? '')
-      setNomFr(initialValues?.nom_fr ?? '')
-      setFile(null)
-      setPreview(initialValues?.image ?? null)
-    }
-  }, [open, initialValues])
-
-  useEffect(() => {
-    if (!file) return
-    const objectUrl = URL.createObjectURL(file)
-    setPreview(objectUrl)
-    return () => URL.revokeObjectURL(objectUrl)
-  }, [file])
-
-  if (!open) return null
-
-  function submit(e) {
-    e.preventDefault()
-    if (!(nomAr.trim() || nomFr.trim())) return
-
-    onSubmit({
-      nom_ar: nomAr.trim(),
-      nom_fr: nomFr.trim(),
-      file,
-    })
-  }
-
-  return (
-    <div className="modal-overlay" onMouseDown={onClose}>
-      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="modal-head">
-          <div className="modal-title">
-            {mode === 'edit' ? 'Modifier une Famille' : 'Ajouter une Famille'}
-          </div>
-
-          <button className="modal-x" type="button" onClick={onClose} aria-label="Fermer">
-            <X size={18} />
-          </button>
-        </div>
-
-        <form className="modal-body" onSubmit={submit}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <label className="form-label">
-              Nom Français
-              <input
-                className="form-input"
-                value={nomFr}
-                onChange={(e) => setNomFr(e.target.value)}
-                placeholder="Ex: Produits Alimentaires"
-              />
-            </label>
-
-            <label className="form-label">
-              Nom Arabe
-              <input
-                className="form-input"
-                value={nomAr}
-                onChange={(e) => setNomAr(e.target.value)}
-                placeholder="مثال: المنتجات الغذائية"
-                dir="rtl"
-              />
-            </label>
-          </div>
-
-          {preview ? (
-            <div className="cat-ico" style={{ marginBottom: '12px' }}>
-              <img className="cat-img" src={preview} alt="Aperçu famille" />
-            </div>
-          ) : null}
-
-          <label className="form-label">
-            Image
-            <input
-              className="form-input"
-              type="file"
-              accept="image/*"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-            />
-          </label>
-
-          <div className="modal-foot">
-            <button className="btn-ghost" type="button" onClick={onClose}>
-              Annuler
-            </button>
-
-            <button
-              className="btn-primary"
-              type="submit"
-              disabled={!(nomAr.trim() || nomFr.trim())}
-            >
-              {mode === 'edit' ? 'Enregistrer' : 'Ajouter'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  )
-}
+import { toast } from '../../lib/toast'
+import { EntityCard, EntityModal, Empty, Hero, Skeletons } from '../../components/catalogue/CatalogueUI'
+import { fmtInt, listOf } from '../../components/catalogue/format'
 
 export default function Familles() {
   const navigate = useNavigate()
-  const [open, setOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [editing, setEditing] = useState(null)
-
   const [familles, setFamilles] = useState([])
+  const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const [modal, setModal] = useState(null) // { mode, item }
   const [toDelete, setToDelete] = useState(null)
-  const errTimerRef = useRef(null)
 
-  function showTempError(message) {
-    const msg = (message || '').toString()
-    if (!msg) return
-    setError(msg)
-    if (errTimerRef.current) window.clearTimeout(errTimerRef.current)
-    errTimerRef.current = window.setTimeout(() => setError(''), 3800)
-  }
-
-  async function load() {
-    setError('')
+  const load = useCallback(async () => {
     setLoading(true)
-
+    setError('')
     try {
-      const res = await apiFetch('/api/familles')
-      const items = Array.isArray(res) ? res : res?.data || []
-
-      setFamilles(items)
+      const [fam, art] = await Promise.all([
+        apiFetch('/api/familles?per_page=200'),
+        apiFetch('/api/articles?per_page=1&with_stats=1'),
+      ])
+      setFamilles(listOf(fam))
+      setStats(art?.stats || null)
     } catch (e) {
-      setError(e?.message || 'Erreur')
+      setError(e?.message || 'Chargement impossible')
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     load()
-  }, [])
+  }, [load])
 
-  useEffect(() => {
-    return () => {
-      if (errTimerRef.current) window.clearTimeout(errTimerRef.current)
-    }
-  }, [])
+  const shown = useMemo(() => {
+    const s = q.trim().toLowerCase()
+    return familles.filter((f) => !s || `${f.nom_fr || ''} ${f.nom_ar || ''}`.toLowerCase().includes(s))
+  }, [familles, q])
 
-  const totals = useMemo(() => {
-    const totalFamilles = familles.length
-    return { totalFamilles }
-  }, [familles])
+  const totals = useMemo(
+    () => ({
+      categories: familles.reduce((n, f) => n + Number(f.categories_count || 0), 0),
+      sous: familles.reduce((n, f) => n + Number(f.sous_categories_count || 0), 0),
+    }),
+    [familles]
+  )
 
-  async function addFamille(values) {
+  async function save(values) {
+    const form = new FormData()
+    form.append('nom_fr', values.name_fr)
+    form.append('nom_ar', values.name_ar)
+    if (values.file) form.append('image', values.file)
     try {
-      const form = new FormData()
-      form.append('nom_ar', values.nom_ar)
-      form.append('nom_fr', values.nom_fr)
-      if (values.file) form.append('image', values.file)
-
-      await apiFetch('/api/familles', { method: 'POST', body: form })
-      setOpen(false)
+      if (modal?.mode === 'edit') {
+        form.append('_method', 'PUT')
+        await apiFetch(`/api/familles/${modal.item.id}`, { method: 'POST', body: form })
+        toast({ type: 'success', message: 'Famille modifiée.' })
+      } else {
+        await apiFetch('/api/familles', { method: 'POST', body: form })
+        toast({ type: 'success', message: 'Famille ajoutée.' })
+      }
+      setModal(null)
       await load()
     } catch (e) {
-      showTempError(e?.message || 'Erreur')
-    }
-  }
-
-  async function updateFamille(values) {
-    if (!editing?.id) return
-
-    try {
-      const form = new FormData()
-      form.append('_method', 'PUT')
-      form.append('nom_ar', values.nom_ar)
-      form.append('nom_fr', values.nom_fr)
-      if (values.file) form.append('image', values.file)
-
-      await apiFetch(`/api/familles/${editing.id}`, { method: 'POST', body: form })
-      setEditOpen(false)
-      setEditing(null)
-      await load()
-    } catch (e) {
-      showTempError(e?.message || 'Erreur')
+      toast({ type: 'error', message: e?.message || 'Erreur' })
     }
   }
 
-  function askDelete(famille) {
-    setToDelete(famille)
-    setConfirmOpen(true)
-  }
-
-  async function confirmDelete() {
-    if (!toDelete) return
-    setConfirmOpen(false)
+  async function remove() {
+    const f = toDelete
+    setToDelete(null)
     try {
-      await apiFetch(`/api/familles/${toDelete.id}`, { method: 'DELETE' })
-      setToDelete(null)
+      await apiFetch(`/api/familles/${f.id}`, { method: 'DELETE' })
+      toast({ type: 'success', message: 'Famille supprimée.' })
       await load()
     } catch (e) {
-      showTempError(e?.message || 'Erreur')
+      toast({ type: 'error', message: e?.message || 'Suppression impossible' })
     }
   }
 
   return (
-    <section className="content">
-      <div className="page-head">
-        <div>
-          <div className="page-title page-title-xl">Familles</div>
-          <div className="page-subtitle">Gérer les familles de produits</div>
-        </div>
+    <section className="cx">
+      <Hero
+        crumbs={[{ label: 'Catalogue' }]}
+        title="Familles de produits"
+        titleAr="عائلات المنتجات"
+        subtitle="Les grands univers du magasin. Ouvrez une famille pour voir ses catégories, sous-catégories et produits."
+        stats={[
+          { label: 'Familles', value: fmtInt(familles.length) },
+          { label: 'Catégories', value: fmtInt(totals.categories) },
+          { label: 'Sous-catégories', value: fmtInt(totals.sous) },
+          { label: 'Produits', value: fmtInt(stats?.total) },
+          ...(stats?.a_tarifer ? [{ label: 'Produits à tarifer', value: fmtInt(stats.a_tarifer), warn: true }] : []),
+        ]}
+        actions={
+          <>
+            <button className="cx-btn cx-btn-ghost-light" type="button" onClick={() => navigate('/admin/produits')}>
+              <LayoutGrid size={16} /> Tous les produits
+            </button>
+            <button className="cx-btn cx-btn-primary" type="button" onClick={() => setModal({ mode: 'create' })}>
+              <Plus size={16} /> Nouvelle famille
+            </button>
+          </>
+        }
+      />
 
-        <button className="primary primary-pill" type="button" onClick={() => setOpen(true)}>
-          <Plus size={16} />
-          Ajouter Famille
-        </button>
+      {error ? <div className="cx-alert">{error}</div> : null}
+
+      <div className="cx-toolbar">
+        <label className="cx-search">
+          <Search size={18} color="#94a3b8" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher une famille…" />
+        </label>
       </div>
 
-      <Alert type="error" message={error} />
-
-      <div className="cat-grid">
-        {loading ? <div className="products-empty">Chargement…</div> : null}
-
+      <div className="cx-grid cx-grid-lg">
+        {loading ? <Skeletons count={4} height={280} /> : null}
+        {!loading && shown.length === 0 ? (
+          <Empty
+            title={q ? 'Aucune famille ne correspond' : 'Aucune famille'}
+            action={
+              !q && (
+                <button className="cx-btn cx-btn-primary" type="button" onClick={() => setModal({ mode: 'create' })}>
+                  <Plus size={16} /> Créer une famille
+                </button>
+              )
+            }
+          >
+            {q ? 'Essayez un autre mot.' : 'Créez votre premier univers (Alimentation, Hygiène, Entretien…).'}
+          </Empty>
+        ) : null}
         {!loading &&
-          familles.map((f) => (
-            <div key={f.id} className="cat-card">
-              <div className="cat-top">
-                <div className="cat-ico">
-                  {f.image ? (
-                    <img className="cat-img" src={f.image} alt={f.nom_fr || f.nom_ar} />
-                  ) : (
-                    <div className="cat-img-fallback">{(f.nom_fr || f.nom_ar || '?')[0]}</div>
-                  )}
-                </div>
-
-                <div>
-                  <div className="cat-name">{f.nom_ar || f.nom_fr}</div>
-
-                  {(f.nom_ar && f.nom_fr) && (
-                    <div style={{ fontSize: '11px', color: '#64748b' }}>
-                      {f.nom_ar} | {f.nom_fr}
-                    </div>
-                  )}
-
-                  <div className="cat-count">Famille</div>
-                </div>
-              </div>
-
-              <div className="cat-actions">
-                <button
-                  className="cat-btn"
-                  type="button"
-                  onClick={() => {
-                    setEditing(f)
-                    setEditOpen(true)
-                  }}
-                >
-                  <Pencil size={16} />
-                  Modifier
-                </button>
-
-                <button
-                  className="cat-icon-btn"
-                  type="button"
-                  onClick={() => navigate(`/admin/familles/${f.id}/categories`)}
-                  aria-label="Catégories"
-                >
-                  <FolderTree size={16} />
-                </button>
-
-                <button
-                  className="cat-icon-btn cat-icon-btn-danger"
-                  type="button"
-                  onClick={() => askDelete(f)}
-                  aria-label="Supprimer"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </div>
+          shown.map((f) => (
+            <EntityCard
+              key={f.id}
+              image={f.image}
+              title={f.nom_fr || f.nom_ar}
+              titleAr={f.nom_fr ? f.nom_ar : null}
+              pills={[
+                { label: `${fmtInt(f.categories_count)} catégories` },
+                { label: `${fmtInt(f.sous_categories_count)} sous-catégories` },
+                { label: `${fmtInt(f.articles_count)} produits`, tone: 'red' },
+              ]}
+              onOpen={() => navigate(`/admin/familles/${f.id}/categories`)}
+              onEdit={() => setModal({ mode: 'edit', item: f })}
+              onDelete={() => setToDelete(f)}
+            />
           ))}
       </div>
 
-      <FamilleModal
-        open={open}
-        mode="create"
-        onClose={() => setOpen(false)}
-        onSubmit={addFamille}
-      />
-
-      <FamilleModal
-        open={editOpen}
-        mode="edit"
-        initialValues={editing}
-        onClose={() => {
-          setEditOpen(false)
-          setEditing(null)
-        }}
-        onSubmit={updateFamille}
+      <EntityModal
+        open={!!modal}
+        title={modal?.mode === 'edit' ? 'Modifier la famille' : 'Nouvelle famille'}
+        initial={modal?.item ? { name_fr: modal.item.nom_fr, name_ar: modal.item.nom_ar, image: modal.item.image } : null}
+        onClose={() => setModal(null)}
+        onSubmit={save}
       />
 
       <ConfirmDialog
-        open={confirmOpen}
+        open={!!toDelete}
         title="Supprimer la famille"
-        message={`Voulez-vous vraiment supprimer la famille « ${toDelete?.nom_fr || toDelete?.nom_ar} » ? Cette action est irréversible.`}
+        message={`Supprimer « ${toDelete?.nom_fr || toDelete?.nom_ar} » ? Ses catégories seront aussi supprimées.`}
         confirmLabel="Supprimer"
-        onConfirm={confirmDelete}
-        onCancel={() => {
-          setConfirmOpen(false)
-          setToDelete(null)
-        }}
+        onConfirm={remove}
+        onCancel={() => setToDelete(null)}
       />
     </section>
   )

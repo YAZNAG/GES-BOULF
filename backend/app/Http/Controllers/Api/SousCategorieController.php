@@ -30,6 +30,26 @@ class SousCategorieController extends CrudController
         'image' => ['nullable', 'image'],
     ];
 
+    public function index(Request $request)
+    {
+        $query = $this->modelClass::query()->with(['categorie.famille'])->withCount('articles');
+
+        if ($request->filled('categorie_id')) {
+            $query->where('categorie_id', $request->query('categorie_id'));
+        }
+        if ($request->filled('famille_id')) {
+            $query->whereHas('categorie', fn ($c) => $c->where('famille_id', $request->query('famille_id')));
+        }
+        if ($q = trim((string) $request->query('q', ''))) {
+            $query->where(fn ($w) => $w->where('nom', 'like', "%{$q}%")->orWhere('name_fr', 'like', "%{$q}%")->orWhere('name_ar', 'like', "%{$q}%"));
+        }
+        $query->orderBy('nom');
+
+        $perPage = max(1, min(1000, (int) $request->query('per_page', 20)));
+
+        return response()->json($query->paginate($perPage));
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate($this->storeRules);

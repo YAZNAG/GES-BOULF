@@ -24,6 +24,11 @@ class SousCategorie extends Model
         return $this->belongsTo(Category::class, 'categorie_id');
     }
 
+    public function articles(): HasMany
+    {
+        return $this->hasMany(Article::class, 'sous_categorie_id');
+    }
+
     public function subCategories(): HasMany
     {
         return $this->hasMany(SubCategory::class, 'sous_categorie_id');

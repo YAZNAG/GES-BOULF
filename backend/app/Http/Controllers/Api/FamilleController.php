@@ -22,6 +22,25 @@ class FamilleController extends CrudController
         'image'  => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
     ];
 
+    public function index(Request $request)
+    {
+        $articles = \App\Models\Article::query()
+            ->selectRaw('count(*)')
+            ->join('sous_categories', 'sous_categories.id', '=', 'articles.sous_categorie_id')
+            ->join('categories', 'categories.id', '=', 'sous_categories.categorie_id')
+            ->whereColumn('categories.famille_id', 'familles.id');
+
+        $query = Famille::query()
+            ->withCount(['categories', 'sousCategories'])
+            ->selectSub($articles, 'articles_count')
+            ->addSelect('familles.*')
+            ->orderBy('nom_fr');
+
+        $perPage = max(1, min(1000, (int) $request->query('per_page', 100)));
+
+        return response()->json($query->paginate($perPage));
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate($this->storeRules);

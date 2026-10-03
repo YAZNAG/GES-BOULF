@@ -27,4 +27,9 @@ class Category extends Model
     {
         return $this->hasMany(SousCategorie::class, 'categorie_id');
     }
+
+    public function articles()
+    {
+        return $this->hasManyThrough(Article::class, SousCategorie::class, 'categorie_id', 'sous_categorie_id');
+    }
 }

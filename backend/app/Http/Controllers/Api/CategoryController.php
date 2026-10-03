@@ -32,11 +32,15 @@ class CategoryController extends CrudController
 
     public function index(Request $request)
     {
-        $query = $this->modelClass::query()->with($this->with);
+        $query = $this->modelClass::query()->with([...$this->with, 'famille'])->withCount(['sousCategories', 'articles']);
 
         if ($request->has('famille_id') && $request->famille_id) {
             $query->where('famille_id', $request->famille_id);
         }
+        if ($q = trim((string) $request->query('q', ''))) {
+            $query->where(fn ($w) => $w->where('nom', 'like', "%{$q}%")->orWhere('name_fr', 'like', "%{$q}%")->orWhere('name_ar', 'like', "%{$q}%"));
+        }
+        $query->orderBy('nom');
 
         $perPage = (int) $request->query('per_page', 20);
         $perPage = max(1, min(1000, $perPage));

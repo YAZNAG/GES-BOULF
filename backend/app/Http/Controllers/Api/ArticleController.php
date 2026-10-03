@@ -45,6 +45,72 @@ class ArticleController extends CrudController
         'actif' => ['nullable', 'boolean'],
     ];
 
+    /**
+     * Liste des articles avec recherche, filtres et pagination côté serveur.
+     * Paramètres : q, famille_id, categorie_id, sous_categorie_id, marque_id,
+     * statut (actif|inactif|a_tarifer|rupture), sort (nom|recent|prix_asc|prix_desc), per_page (≤ 5000), with_stats=1.
+     */
+    public function index(Request $request)
+    {
+        $query = Article::query()->with(['sousCategorie.categorie.famille', 'marque', 'prix', 'stock']);
+        $this->applyFilters($query, $request);
+
+        match ($request->query('sort', 'nom')) {
+            'recent' => $query->orderByDesc('articles.id'),
+            'prix_asc', 'prix_desc' => $query->leftJoin('prix_articles as pa', 'pa.article_id', '=', 'articles.id')
+                ->select('articles.*')
+                ->orderBy('pa.prix_vente', $request->query('sort') === 'prix_asc' ? 'asc' : 'desc'),
+            default => $query->orderBy('articles.nom'),
+        };
+
+        $perPage = max(1, min(5000, (int) $request->query('per_page', 20)));
+        $page = $query->paginate($perPage)->toArray();
+
+        if ($request->boolean('with_stats')) {
+            $page['stats'] = [
+                'total' => Article::query()->count(),
+                'actifs' => Article::query()->where('actif', true)->count(),
+                'a_tarifer' => Article::query()->whereDoesntHave('prix', fn ($p) => $p->where('prix_vente', '>', 0))->count(),
+                'rupture' => Article::query()->whereDoesntHave('stock', fn ($s) => $s->where('quantite', '>', 0))->count(),
+                'marques' => \App\Models\Marque::query()->count(),
+            ];
+        }
+
+        return response()->json($page);
+    }
+
+    private function applyFilters($query, Request $request): void
+    {
+        if ($q = trim((string) $request->query('q', ''))) {
+            $query->where(function ($w) use ($q) {
+                $w->where('articles.nom', 'like', "%{$q}%")
+                    ->orWhere('articles.name_fr', 'like', "%{$q}%")
+                    ->orWhere('articles.name_ar', 'like', "%{$q}%")
+                    ->orWhere('articles.code_article', 'like', "%{$q}%")
+                    ->orWhereHas('marque', fn ($m) => $m->where('nom', 'like', "%{$q}%"));
+            });
+        }
+        if ($request->filled('sous_categorie_id')) {
+            $query->where('articles.sous_categorie_id', $request->query('sous_categorie_id'));
+        }
+        if ($request->filled('categorie_id')) {
+            $query->whereHas('sousCategorie', fn ($s) => $s->where('categorie_id', $request->query('categorie_id')));
+        }
+        if ($request->filled('famille_id')) {
+            $query->whereHas('sousCategorie.categorie', fn ($c) => $c->where('famille_id', $request->query('famille_id')));
+        }
+        if ($request->filled('marque_id')) {
+            $query->where('articles.marque_id', $request->query('marque_id'));
+        }
+        match ($request->query('statut')) {
+            'actif' => $query->where('articles.actif', true),
+            'inactif' => $query->where('articles.actif', false),
+            'a_tarifer' => $query->whereDoesntHave('prix', fn ($p) => $p->where('prix_vente', '>', 0)),
+            'rupture' => $query->whereDoesntHave('stock', fn ($s) => $s->where('quantite', '>', 0)),
+            default => null,
+        };
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate($this->storeRules);

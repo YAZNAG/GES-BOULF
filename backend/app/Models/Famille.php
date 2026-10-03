@@ -12,4 +12,9 @@ class Famille extends Model
     {
         return $this->hasMany(Category::class);
     }
+
+    public function sousCategories()
+    {
+        return $this->hasManyThrough(SousCategorie::class, Category::class, 'famille_id', 'categorie_id');
+    }
 }
