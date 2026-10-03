@@ -139,3 +139,140 @@
   }
 }
 
+
+/* ===================== Connexion Boulfrik ===================== */
+.lg-page {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  overflow: hidden;
+  background: radial-gradient(900px 500px at 85% -10%, rgba(225, 29, 46, 0.35), transparent 60%),
+    radial-gradient(700px 500px at -10% 110%, rgba(225, 29, 46, 0.22), transparent 60%),
+    linear-gradient(160deg, #0b1220 0%, #111827 50%, #2a0a10 100%);
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.lg-glow {
+  position: absolute;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.18), transparent 65%);
+  filter: blur(10px);
+  animation: lg-float 9s ease-in-out infinite;
+}
+@keyframes lg-float {
+  0%, 100% { transform: translate(-30px, -20px); }
+  50% { transform: translate(30px, 20px); }
+}
+.lg-card {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  padding: 36px 28px 30px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  animation: lg-in 0.35s ease;
+}
+@keyframes lg-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+.lg-logo {
+  align-self: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 20px;
+  box-shadow: 0 14px 30px -8px rgba(225, 29, 46, 0.55);
+}
+.lg-brand {
+  margin: 4px 0 10px;
+  text-align: center;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+.lg-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #94a3b8;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.lg-field:focus-within {
+  border-color: #fda4af;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(225, 29, 46, 0.1);
+  color: #e11d2e;
+}
+.lg-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  color: #0f172a;
+}
+.lg-field input::placeholder { color: #94a3b8; }
+.lg-eye {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+}
+.lg-eye:hover { color: #0f172a; background: #f1f5f9; }
+.lg-error {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 13.5px;
+}
+.lg-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 50px;
+  margin-top: 6px;
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f43f5e, #e11d2e 55%, #be123c);
+  color: #fff;
+  font-size: 15.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 14px 28px -10px rgba(225, 29, 46, 0.7);
+  transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
+}
+.lg-submit:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.lg-submit:active { transform: none; }
+.lg-submit:disabled { opacity: 0.75; cursor: wait; transform: none; }
+.lg-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  animation: lg-spin 0.7s linear infinite;
+}
+@keyframes lg-spin { to { transform: rotate(360deg); } }

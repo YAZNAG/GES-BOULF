@@ -49,6 +49,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _busy = false;
   bool _obscure = true;
   bool _showServer = false;
+  int _logoTaps = 0;
   String? _error;
 
   @override
@@ -109,12 +110,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 420),
                   child: Column(children: [
-                    const BrandLogo(),
+                    // 7 appuis sur le logo affichent le réglage du serveur (tests uniquement).
+                    GestureDetector(
+                      onTap: () {
+                        if (++_logoTaps >= 7) setState(() => _showServer = true);
+                      },
+                      child: const BrandLogo(),
+                    ),
                     const SizedBox(height: 18),
                     const Text('Boulfrik',
                         style: TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-                    const SizedBox(height: 4),
-                    Text('Gestion du supermarché', style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 15)),
                     const SizedBox(height: 28),
                     Card(
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
@@ -124,10 +129,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           key: _form,
                           child: AutofillGroup(
                             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                              const Text('Connexion', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
                               const SizedBox(height: 4),
-                              const Text('Accédez à votre espace de gestion.', style: TextStyle(color: AppColors.muted)),
-                              const SizedBox(height: 18),
                               TextFormField(
                                 controller: _email,
                                 keyboardType: TextInputType.emailAddress,
@@ -176,34 +178,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                         width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
                                     : const Text('Se connecter'),
                               ),
-                              const SizedBox(height: 6),
-                              // Champ « Serveur » repliable.
-                              InkWell(
-                                borderRadius: BorderRadius.circular(10),
-                                onTap: () => setState(() => _showServer = !_showServer),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  child: Row(children: [
-                                    const Icon(Icons.dns_outlined, size: 18, color: AppColors.muted),
-                                    const SizedBox(width: 8),
-                                    const Text('Serveur', style: TextStyle(color: AppColors.muted, fontWeight: FontWeight.w600)),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        _server.text.replaceFirst(RegExp(r'^https?://'), ''),
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(color: AppColors.muted, fontSize: 12.5),
-                                      ),
-                                    ),
-                                    Icon(_showServer ? Icons.expand_less : Icons.expand_more, color: AppColors.muted),
-                                  ]),
-                                ),
-                              ),
                               AnimatedCrossFade(
                                 duration: const Duration(milliseconds: 200),
                                 crossFadeState: _showServer ? CrossFadeState.showSecond : CrossFadeState.showFirst,
                                 firstChild: const SizedBox(width: double.infinity),
                                 secondChild: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                                  const SizedBox(height: 16),
                                   TextField(
                                     controller: _server,
                                     keyboardType: TextInputType.url,
@@ -232,8 +212,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 18),
-                    Text('© Boulfrik · Optizaworks', style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12)),
                   ]),
                 ),
               ),
