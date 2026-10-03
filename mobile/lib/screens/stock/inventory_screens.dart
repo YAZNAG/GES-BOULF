@@ -7,6 +7,7 @@ import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/pickers.dart';
 import '../../widgets/scanner.dart';
+import '../../widgets/unknown_product.dart';
 
 String _statutLabel(String s) => switch (s) {
       'en_cours' => 'En cours',
@@ -183,11 +184,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
     if (code == null || !mounted) return;
     final a = await runBusy(context, () => lookupArticle(context.api, code));
     if (!mounted) return;
-    if (a == null) {
-      showInfo(context, 'Aucun article pour le code $code.');
-      return;
-    }
-    await _count(a);
+    final article = a ?? await offerAddProduct(context, code);
+    if (article == null || !mounted) return;
+    await _count(article);
   }
 
   Future<void> _search() async {

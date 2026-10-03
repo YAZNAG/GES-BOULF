@@ -101,8 +101,8 @@ class _PriceSheetState extends State<_PriceSheet> {
       child: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
           const Text('Modifier les prix', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          Text(widget.article.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.muted)),
+          const SizedBox(height: 12),
+          ProductHeader(article: widget.article),
           const SizedBox(height: 16),
           Row(children: [
             Expanded(child: _field('Prix d’achat', _achat, 'prix_achat', icon: Icons.shopping_bag_outlined)),
@@ -151,5 +151,32 @@ class _PriceSheetState extends State<_PriceSheet> {
         ]),
       ),
     );
+  }
+}
+
+/// En-tête des formulaires de prix : photo du produit, noms FR / AR, marque et code-barres.
+class ProductHeader extends StatelessWidget {
+  const ProductHeader({super.key, required this.article, this.size = 76});
+
+  final Json article;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final ar = article.articleNameAr;
+    return Row(children: [
+      ItemThumb(path: article['image'], label: article.articleName, size: size),
+      const SizedBox(width: 14),
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (article.brandName != null)
+            Text(article.brandName!.toUpperCase(),
+                style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+          Text(article.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+          if (ar != null) Align(alignment: Alignment.centerLeft, child: ArabicText(ar, maxLines: 1)),
+          Text(article.barcode, style: const TextStyle(color: AppColors.muted, fontSize: 11.5, fontFamily: 'monospace')),
+        ]),
+      ),
+    ]);
   }
 }

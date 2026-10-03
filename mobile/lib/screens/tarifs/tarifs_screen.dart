@@ -6,9 +6,11 @@ import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
+import '../../widgets/pickers.dart';
 import '../../widgets/price_editor.dart';
 import '../../widgets/scanner.dart';
 import '../products/product_detail_screen.dart';
+import '../../widgets/unknown_product.dart';
 
 /// Tarifs de vente : prix d'achat / vente / gros / promo et marge, modification rapide.
 class TarifsScreen extends StatefulWidget {
@@ -32,7 +34,11 @@ class _TarifsScreenState extends State<TarifsScreen> {
 
   Future<void> _scan() async {
     final code = await ScannerPage.scan(context);
-    if (code != null) _list.currentState?.setSearch(code);
+    if (code == null || !mounted) return;
+    final a = await runBusy<Json?>(context, () => lookupArticle(context.api, code));
+    if (!mounted) return;
+    if (a == null && await offerAddProduct(context, code) == null) return;
+    _list.currentState?.setSearch(code);
   }
 
   @override

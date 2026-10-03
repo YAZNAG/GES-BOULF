@@ -18,6 +18,7 @@ import 'sales/sales_screens.dart';
 import 'stock/stock_screen.dart';
 import 'suppliers/suppliers_screens.dart';
 import 'tarifs/tarifs_screen.dart';
+import '../widgets/unknown_product.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key, required this.onOpenTab, this.viewKey});
@@ -36,11 +37,9 @@ class DashboardScreen extends StatelessWidget {
     final code = await ScannerPage.scan(context, title: 'Rechercher un article');
     if (code == null || !context.mounted) return;
     final api = context.api;
-    final a = await runBusy(context, () async {
-      final r = await lookupArticle(api, code);
-      if (r == null) throw ApiException('Aucun article pour le code « $code ».');
-      return r;
-    });
+    var a = await runBusy<Json?>(context, () => lookupArticle(api, code));
+    if (!context.mounted) return;
+    a ??= await offerAddProduct(context, code);
     if (a != null && context.mounted) context.push(ProductDetailScreen(articleId: a.integer('id')));
   }
 

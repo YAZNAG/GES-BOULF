@@ -7,6 +7,7 @@ import '../core/theme.dart';
 import 'common.dart';
 import 'paged_list.dart';
 import 'scanner.dart';
+import 'unknown_product.dart';
 
 /// Recherche d'un article par code-barres (`GET articles/lookup?code=`). Null si introuvable.
 Future<Json?> lookupArticle(ApiClient api, String code) async {
@@ -112,11 +113,8 @@ class _ProductPicker extends StatelessWidget {
     try {
       final a = await lookupArticle(api, code);
       if (!context.mounted) return;
-      if (a == null) {
-        showError(context, ApiException('Aucun article pour le code « $code ».'));
-      } else {
-        Navigator.pop(context, a);
-      }
+      final article = a ?? await offerAddProduct(context, code);
+      if (article != null && context.mounted) Navigator.pop(context, article);
     } catch (e) {
       if (context.mounted) showError(context, e);
     }

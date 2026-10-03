@@ -6,8 +6,11 @@ import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
+import '../../widgets/pickers.dart';
+import '../../widgets/price_editor.dart';
 import '../../widgets/scanner.dart';
 import '../products/product_detail_screen.dart';
+import '../../widgets/unknown_product.dart';
 
 /// Prix d'achat des articles, avec le dernier achat (bon de réception) et la recherche FR / AR / code-barres.
 class PurchasePricesScreen extends StatefulWidget {
@@ -24,7 +27,11 @@ class _PurchasePricesScreenState extends State<PurchasePricesScreen> {
 
   Future<void> _scan() async {
     final code = await ScannerPage.scan(context);
-    if (code != null) _list.currentState?.setSearch(code);
+    if (code == null || !mounted) return;
+    final a = await runBusy<Json?>(context, () => lookupArticle(context.api, code));
+    if (!mounted) return;
+    if (a == null && await offerAddProduct(context, code) == null) return;
+    _list.currentState?.setSearch(code);
   }
 
   /// Modification rapide du prix d'achat (le prix de vente ne change pas).
@@ -33,8 +40,10 @@ class _PurchasePricesScreenState extends State<PurchasePricesScreen> {
     final v = await showDialog<double>(
       context: context,
       builder: (c) => AlertDialog(
-        title: Text(a.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 17)),
+        title: const Text('Prix d’achat'),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          ProductHeader(article: a, size: 64),
+          const SizedBox(height: 12),
           if (a.prixVente > 0) Text('Prix de vente : ${money(a.prixVente)}', style: const TextStyle(color: AppColors.muted)),
           const SizedBox(height: 12),
           TextField(

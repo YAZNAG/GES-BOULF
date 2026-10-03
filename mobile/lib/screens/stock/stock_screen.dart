@@ -6,9 +6,11 @@ import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
+import '../../widgets/pickers.dart';
 import '../../widgets/scanner.dart';
 import '../../widgets/stock_adjust.dart';
 import '../products/product_detail_screen.dart';
+import '../../widgets/unknown_product.dart';
 
 /// Articles en stock (quantités, seuils, valeur), avec ajustement rapide.
 class StockScreen extends StatefulWidget {
@@ -32,7 +34,11 @@ class _StockScreenState extends State<StockScreen> {
 
   Future<void> _scan() async {
     final code = await ScannerPage.scan(context);
-    if (code != null) _list.currentState?.setSearch(code);
+    if (code == null || !mounted) return;
+    final a = await runBusy<Json?>(context, () => lookupArticle(context.api, code));
+    if (!mounted) return;
+    if (a == null && await offerAddProduct(context, code) == null) return;
+    _list.currentState?.setSearch(code);
   }
 
   @override

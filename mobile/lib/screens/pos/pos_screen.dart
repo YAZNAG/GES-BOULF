@@ -11,8 +11,8 @@ import '../../widgets/common.dart';
 import '../../widgets/pickers.dart';
 import '../../widgets/price_editor.dart';
 import '../../widgets/scanner.dart';
-import '../products/quick_add_screen.dart';
 import 'checkout_screen.dart';
+import '../../widgets/unknown_product.dart';
 
 /// Article dans le panier.
 class CartItem {
@@ -193,22 +193,7 @@ class _PosScreenState extends State<PosScreen> {
 
   /// Code scanné absent du magasin : message, puis fiche d'ajout préremplie automatiquement.
   Future<void> _unknownCode(String code) async {
-    final ajouter = await showDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        icon: const Icon(Icons.qr_code_2, color: AppColors.primary, size: 36),
-        title: const Text('Article introuvable'),
-        content: Text('Le code $code n’existe pas dans le magasin.\n\n'
-            'Voulez-vous l’ajouter ? La fiche (photo, nom français et arabe) est préparée automatiquement : '
-            'il suffit d’indiquer le prix de vente.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
-          FilledButton.icon(onPressed: () => Navigator.pop(c, true), icon: const Icon(Icons.add), label: const Text('Ajouter le produit')),
-        ],
-      ),
-    );
-    if (ajouter != true || !mounted) return;
-    final article = await QuickAddScreen.open(context, code);
+    final article = await offerAddProduct(context, code);
     if (article == null || !mounted) return;
     _byCode[code] = article;
     _tryAdd(article);
@@ -411,6 +396,8 @@ class _PosScreenState extends State<PosScreen> {
       builder: (c) => AlertDialog(
         title: const Text('Prix pour cette vente'),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          ProductHeader(article: item.article, size: 64),
+          const SizedBox(height: 12),
           Text('Prix du catalogue : ${money(item.catalogPrice)}', style: const TextStyle(color: AppColors.muted)),
           const SizedBox(height: 12),
           TextField(

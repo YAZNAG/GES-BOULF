@@ -7,6 +7,7 @@ import '../core/theme.dart';
 import 'common.dart';
 import 'pickers.dart';
 import 'scanner.dart';
+import 'unknown_product.dart';
 
 /// Ligne de document d'achat (bon de commande, bon de réception).
 class DocLine {
@@ -87,6 +88,8 @@ class _LinesEditorState extends State<LinesEditor> {
 
   Future<void> _scan() async {
     final api = context.api;
+    final nav = Navigator.of(context);
+    String? inconnu;
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -95,7 +98,11 @@ class _LinesEditorState extends State<LinesEditor> {
           onCode: (code) async {
             try {
               final a = await lookupArticle(api, code);
-              if (a == null) return '!Aucun article pour le code $code';
+              if (a == null) {
+                inconnu = code;
+                nav.pop();
+                return null;
+              }
               final line = _add(a);
               return '${a.articleName} — quantité ${qty(line.qtyValue)}';
             } on ApiException catch (e) {
@@ -105,6 +112,10 @@ class _LinesEditorState extends State<LinesEditor> {
         ),
       ),
     );
+    if (inconnu != null && mounted) {
+      final a = await offerAddProduct(context, inconnu!);
+      if (a != null && mounted) _add(a);
+    }
     if (mounted) setState(() {});
   }
 

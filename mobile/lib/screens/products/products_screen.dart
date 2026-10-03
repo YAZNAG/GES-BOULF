@@ -9,7 +9,7 @@ import '../../widgets/pickers.dart';
 import '../../widgets/scanner.dart';
 import 'product_create_screen.dart';
 import 'product_detail_screen.dart';
-import 'quick_add_screen.dart';
+import '../../widgets/unknown_product.dart';
 
 /// Filtre de catégorie choisi (famille ou catégorie).
 class CategoryFilter {
@@ -166,11 +166,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
     var article = a;
     if (article == null) {
       // Produit absent : proposer l'ajout avec la fiche préparée automatiquement.
-      final ajouter = await confirm(context, 'Article introuvable',
-          'Le code $code n’existe pas dans le magasin. Voulez-vous l’ajouter ? Seul le prix de vente est à saisir.',
-          ok: 'Ajouter le produit');
-      if (!ajouter || !mounted) return;
-      article = await QuickAddScreen.open(context, code);
+      article = await offerAddProduct(context, code);
       if (article == null || !mounted) return;
     }
     await context.push(ProductDetailScreen(articleId: article.integer('id'), initial: article));
