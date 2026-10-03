@@ -42,7 +42,8 @@ class ProduitEnrichService
             $p = $off['product'];
             $nom = trim((string) ($p['product_name_fr'] ?? '') ?: (string) ($p['product_name'] ?? '') ?: (string) ($p['generic_name_fr'] ?? ''));
             $marque = trim(Str::before((string) ($p['brands'] ?? ''), ','));
-            $contenance = trim((string) ($p['quantity'] ?? ''));
+            // « 400 g e » / « 400 g ℮ » : le signe e (estimé) n'a pas sa place dans le nom.
+            $contenance = trim(preg_replace('/\s+[e℮]$/u', '', trim((string) ($p['quantity'] ?? ''))));
             if ($nom !== '' && $marque !== '' && ! Str::contains(Str::lower($nom), Str::lower($marque))) {
                 $nom .= ' '.$marque;
             }
@@ -70,6 +71,14 @@ class ProduitEnrichService
                 $fiche['sous_categorie_id'] = $ia['sous_categorie_id'] ?? null;
                 $fiche['ia'] = true;
             }
+        }
+
+        // Sans IA (ou si elle hésite) : la sous-catégorie la plus fréquente des articles de la même marque.
+        if (! $fiche['sous_categorie_id'] && $fiche['marque']) {
+            $fiche['sous_categorie_id'] = \App\Models\Article::query()
+                ->whereHas('marque', fn ($m) => $m->where('nom', $fiche['marque']))
+                ->selectRaw('sous_categorie_id, count(*) as n')->groupBy('sous_categorie_id')->orderByDesc('n')
+                ->value('sous_categorie_id');
         }
 
         $fiche['trouve'] = (bool) ($fiche['name_fr'] || $fiche['image_url']);
