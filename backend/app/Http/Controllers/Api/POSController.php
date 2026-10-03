@@ -30,6 +30,9 @@ class POSController extends Controller
             'mode_paiement' => 'required|string',
         ]);
 
+        // Le montant remis au-delà du total est de la monnaie rendue, pas un encaissement.
+        $request->merge(['montant_paye' => min((float) $request->montant_paye, (float) $request->montant_total)]);
+
         try {
             $result = DB::transaction(function () use ($request) {
                 $userId = auth()->id() ?? 1; // Fallback to 1 for testing if not authenticated

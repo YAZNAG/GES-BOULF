@@ -12,6 +12,8 @@ class UniteController extends CrudController
 {
     protected string $modelClass = Unite::class;
 
+    protected array $searchable = ['nom', 'description'];
+
     protected array $storeRules = [
         'nom' => ['required', 'string', 'max:20', 'unique:unites,nom'],
         'description' => ['nullable', 'string'],

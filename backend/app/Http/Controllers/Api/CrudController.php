@@ -18,12 +18,23 @@ abstract class CrudController extends Controller
 
     protected array $updateRules = [];
 
+    /** Colonnes cherchées par le paramètre ?q= de la liste (vide = pas de recherche). */
+    protected array $searchable = [];
+
     public function index(Request $request)
     {
         $query = ($this->modelClass)::query();
 
         if ($this->with) {
             $query->with($this->with);
+        }
+
+        if ($this->searchable && ($q = trim((string) $request->query('q', ''))) !== '') {
+            $query->where(function ($w) use ($q) {
+                foreach ($this->searchable as $col) {
+                    $w->orWhere($col, 'like', "%{$q}%");
+                }
+            });
         }
 
         $perPage = (int) $request->query('per_page', 20);

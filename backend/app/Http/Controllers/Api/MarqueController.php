@@ -10,6 +10,8 @@ class MarqueController extends CrudController
 {
     protected string $modelClass = Marque::class;
 
+    protected array $searchable = ['nom', 'description'];
+
     protected array $storeRules = [
         'nom' => 'required|string|max:100',
         'image' => 'nullable|image|max:2048',
