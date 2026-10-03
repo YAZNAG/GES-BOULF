@@ -88,7 +88,7 @@ export function useCatalogueProduits() {
   const setView = useCallback((v) => setFilter({ vue: v === 'list' ? 'liste' : '', page: page > 1 ? page : '' }), [setFilter, page])
   const setPage = useCallback((p) => {
     setFilter({ page: p > 1 ? p : '' })
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    document.querySelector('.cx')?.scrollTo({ top: 0, behavior: 'smooth' })
   }, [setFilter])
 
   // Référentiels (chargés une fois).
