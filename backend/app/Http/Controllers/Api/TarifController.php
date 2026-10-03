@@ -30,7 +30,24 @@ class TarifController extends Controller
                 'pa.id as prix_id', DB::raw('COALESCE(pa.prix_achat,0) as prix_achat'), DB::raw('COALESCE(pa.prix_vente,0) as prix_vente'),
                 'pa.prix_gros', 'pa.prix_promo', 'pa.updated_at as prix_maj', DB::raw(self::MARGE_SQL.' as marge'));
 
+        // Dernier achat (bon de réception) : date, fournisseur, prix payé.
+        if ($request->boolean('with_dernier_achat')) {
+            $dernier = fn (string $col) => DB::table('lignes_reception as lr')
+                ->join('receptions as r', 'r.id', '=', 'lr.reception_id')
+                ->leftJoin('fournisseurs as f', 'f.id', '=', 'r.fournisseur_id')
+                ->whereColumn('lr.article_id', 'articles.id')
+                ->orderByDesc('r.date_reception')->orderByDesc('lr.id')
+                ->limit(1)
+                ->select($col);
+            $query->addSelect([
+                'dernier_achat_date' => $dernier('r.date_reception'),
+                'dernier_achat_fournisseur' => $dernier('f.nom'),
+                'dernier_achat_prix' => $dernier('lr.prix_achat'),
+            ]);
+        }
+
         match ($request->query('sort', 'nom')) {
+            'achat_asc' => $query->orderBy('prix_achat'),
             'vente_asc' => $query->orderBy('prix_vente'),
             'vente_desc' => $query->orderByDesc('prix_vente'),
             'achat_desc' => $query->orderByDesc('prix_achat'),

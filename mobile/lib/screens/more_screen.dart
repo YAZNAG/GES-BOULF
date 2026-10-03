@@ -15,6 +15,7 @@ import 'stock/inventory_screens.dart';
 import 'stock/movements_screen.dart';
 import 'stock/stock_screen.dart';
 import 'suppliers/suppliers_screens.dart';
+import 'tarifs/purchase_prices_screen.dart';
 import 'tarifs/tarifs_screen.dart';
 
 typedef _Module = (String title, String subtitle, IconData icon, Color color, Widget Function() page);
@@ -35,6 +36,7 @@ class MoreScreen extends StatelessWidget {
             () => const ClientsScreen(creditOnly: true)),
       ]),
       ('Achats', [
+        ('Prix d’achat', 'Prix d’achat et dernier achat', Icons.shopping_bag_outlined, AppColors.teal, () => const PurchasePricesScreen()),
         ('Fournisseurs', 'Coordonnées, relevés', Icons.local_shipping_outlined, AppColors.info, () => const SuppliersScreen()),
         ('Crédit fournisseurs', 'Régler un fournisseur', Icons.payments_outlined, AppColors.danger,
             () => const SuppliersScreen(creditOnly: true)),
