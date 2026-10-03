@@ -98,6 +98,84 @@ class ArticleController extends CrudController
         return $article ? response()->json($article) : response()->json(['message' => "Aucun article pour le code {$code}."], 404);
     }
 
+    /**
+     * Fiche automatique pour un code-barres inconnu (bases ouvertes + assistant IA facultatif).
+     * GET /api/articles/fiche?code=…  → {deja_existant: article|null, fiche: {...}}
+     */
+    public function fiche(Request $request, \App\Services\ProduitEnrichService $enrich)
+    {
+        $code = trim((string) $request->query('code', ''));
+        abort_unless(preg_match('/^\d{6,14}$/', $code), 422, 'Code-barres invalide.');
+        $existant = Article::query()->with(['prix', 'stock', 'marque'])->where('code_article', $code)->first();
+
+        return response()->json([
+            'deja_existant' => $existant,
+            'fiche' => $existant ? null : $enrich->enrich($code),
+        ]);
+    }
+
+    /**
+     * Ajout rapide d'un article scanné : la photo est téléchargée par le serveur depuis image_url.
+     * Seul le prix de vente est indispensable ; l'article est créé actif, avec un stock à 0.
+     */
+    public function rapide(Request $request)
+    {
+        $data = $request->validate([
+            'code_article' => ['required', 'string', 'max:50', 'unique:articles,code_article'],
+            'name_fr' => ['required', 'string', 'max:150'],
+            'name_ar' => ['nullable', 'string', 'max:150'],
+            'marque' => ['nullable', 'string', 'max:100'],
+            'sous_categorie_id' => ['required', 'integer', 'exists:sous_categories,id'],
+            'image_url' => ['nullable', 'url', 'max:500'],
+            'prix_vente' => ['required', 'numeric', 'gt:0'],
+            'prix_achat' => ['nullable', 'numeric', 'min:0'],
+            'unite' => ['nullable', 'string', 'max:20', 'exists:unites,nom'],
+        ]);
+
+        $article = \Illuminate\Support\Facades\DB::transaction(function () use ($data) {
+            $marqueId = null;
+            if (! empty($data['marque'])) {
+                $marqueId = \App\Models\Marque::query()->firstOrCreate(['nom' => trim($data['marque'])])->id;
+            }
+            $article = Article::query()->create([
+                'sous_categorie_id' => $data['sous_categorie_id'],
+                'marque_id' => $marqueId,
+                'code_article' => $data['code_article'],
+                'nom' => $data['name_fr'],
+                'name_fr' => $data['name_fr'],
+                'name_ar' => $data['name_ar'] ?? null,
+                'unite' => $data['unite'] ?? 'pièce',
+                'actif' => true,
+            ]);
+            $article->prix()->create([
+                'prix_achat' => $data['prix_achat'] ?? 0,
+                'prix_vente' => $data['prix_vente'],
+                'prix_gros' => $data['prix_vente'],
+            ]);
+            $article->stock()->create(['quantite' => 0, 'seuil_min' => 5]);
+
+            return $article;
+        });
+
+        // Photo : téléchargée seulement depuis les bases ouvertes connues (pas d'URL arbitraire).
+        if (! empty($data['image_url']) && preg_match('#^https://images\.open(food|beauty|products)facts\.org/#', $data['image_url'])) {
+            try {
+                $img = \Illuminate\Support\Facades\Http::timeout(15)->get($data['image_url']);
+                if ($img->ok() && str_starts_with((string) $img->header('Content-Type'), 'image/') && strlen($img->body()) < 5_000_000) {
+                    $path = "articles/{$article->id}/{$article->code_article}.jpg";
+                    Storage::disk('public')->put($path, $img->body());
+                    $article->update(['image' => Storage::url($path)]);
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::info("Photo non récupérée pour {$article->code_article} : {$e->getMessage()}");
+            }
+        }
+
+        $this->logAction('create', 'articles', (int) $article->id, ['source' => 'ajout rapide', 'code' => $article->code_article]);
+
+        return response()->json($article->load($this->with), 201);
+    }
+
     private function applyFilters($query, Request $request): void
     {
         if ($q = trim((string) $request->query('q', ''))) {

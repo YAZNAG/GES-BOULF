@@ -77,6 +77,8 @@ Route::apiResource('categories', CategoryController::class);
 Route::apiResource('sous_categories', SousCategorieController::class);
 Route::apiResource('familles', FamilleController::class);
 Route::get('articles/lookup', [ArticleController::class, 'lookup']);
+Route::middleware('auth:sanctum')->get('articles/fiche', [ArticleController::class, 'fiche']);
+Route::middleware('auth:sanctum')->post('articles/rapide', [ArticleController::class, 'rapide']);
 Route::apiResource('articles', ArticleController::class);
 Route::apiResource('prix_articles', PrixArticleController::class);
 Route::apiResource('unites', UniteController::class);
