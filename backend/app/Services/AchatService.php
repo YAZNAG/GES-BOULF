@@ -23,6 +23,8 @@ use Illuminate\Validation\ValidationException;
  */
 class AchatService
 {
+    private const MODES = ['especes' => 'en espèces', 'cheque' => 'par chèque', 'virement' => 'par virement', 'effet' => 'par effet', 'carte' => 'par carte'];
+
     /** Numéro lisible et unique : BC-2026-0001, BR-2026-0001… */
     public function numero(string $prefix, string $table): string
     {
@@ -236,7 +238,7 @@ class AchatService
         }
         foreach ($fournisseur->paiements()->orderBy('date_paiement')->get() as $p) {
             $lignes->push(['date' => $p->date_paiement->toDateString(), 'type' => 'paiement', 'id' => $p->id,
-                'libelle' => 'Règlement '.$p->mode.($p->reference ? ' n° '.$p->reference : ''),
+                'libelle' => 'Règlement '.(self::MODES[$p->mode] ?? $p->mode).($p->reference ? ' n° '.$p->reference : ''),
                 'debit' => 0.0, 'credit' => (float) $p->montant, 'tri' => $p->created_at]);
         }
         $solde = 0.0;

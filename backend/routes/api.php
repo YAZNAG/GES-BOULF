@@ -83,6 +83,7 @@ Route::apiResource('unites', UniteController::class);
 Route::apiResource('marques', MarqueController::class);
 Route::apiResource('mode_paiements', ModePaiementController::class);
 
+Route::middleware('auth:sanctum')->post('stock/ajuster', [StockController::class, 'ajuster']);
 Route::apiResource('stock', StockController::class);
 Route::apiResource('mouvements_stock', MouvementStockController::class)->only(['index', 'show', 'store']);
 
@@ -102,7 +103,7 @@ Route::middleware(['auth:sanctum', 'permission:commandes.edit'])->group(function
 Route::middleware(['auth:sanctum', 'permission:commandes.cancel'])->delete('commandes_vente/{commande_vente}', [CommandeVenteController::class, 'destroy']);
 Route::apiResource('lignes_commande_vente', LigneCommandeVenteController::class);
 Route::apiResource('ventes', VenteController::class)->only(['index', 'show']);
-Route::post('pos/sale', [POSController::class, 'store']);
+Route::middleware('auth:sanctum')->post('pos/sale', [POSController::class, 'store']);
 Route::apiResource('factures', FactureController::class);
 Route::apiResource('paiements', PaiementController::class);
 
@@ -143,4 +144,14 @@ Route::middleware('auth:sanctum')->prefix('tarifs')->group(function () {
     Route::get('export', [\App\Http\Controllers\Api\TarifController::class, 'export']);
     Route::post('bulk', [\App\Http\Controllers\Api\TarifController::class, 'bulk']);
     Route::put('{articleId}', [\App\Http\Controllers\Api\TarifController::class, 'update'])->whereNumber('articleId');
+});
+
+// ── Application mobile (et site) ──
+Route::get('app/version', [\App\Http\Controllers\Api\MobileController::class, 'version']);
+Route::middleware('auth:sanctum')->prefix('m')->group(function () {
+    Route::get('dashboard', [\App\Http\Controllers\Api\MobileController::class, 'dashboard']);
+    Route::get('ventes', [\App\Http\Controllers\Api\MobileController::class, 'ventes']);
+    Route::get('ventes/{id}', [\App\Http\Controllers\Api\MobileController::class, 'vente'])->whereNumber('id');
+    Route::get('clients', [\App\Http\Controllers\Api\MobileController::class, 'clients']);
+    Route::get('mouvements', [\App\Http\Controllers\Api\MobileController::class, 'mouvements']);
 });

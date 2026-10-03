@@ -24,6 +24,56 @@ class StockController extends CrudController
     ];
 
     /**
+     * Ajustement de stock en une seule opération (stock + mouvement tracé).
+     * mode : inventaire (quantité comptée), plus, moins. Le seuil minimum peut être modifié en même temps.
+     */
+    public function ajuster(Request $request)
+    {
+        $data = $request->validate([
+            'article_id' => ['required', 'integer', 'exists:articles,id'],
+            'mode' => ['required', 'in:inventaire,plus,moins'],
+            'quantite' => ['required', 'numeric', 'min:0'],
+            'motif' => ['nullable', 'in:perte,don,retour,ajustement'],
+            'note' => ['nullable', 'string', 'max:500'],
+            'seuil_min' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $stock = DB::transaction(function () use ($data, $request) {
+            $stock = Stock::query()->lockForUpdate()->firstOrCreate(['article_id' => $data['article_id']], ['quantite' => 0, 'seuil_min' => 0]);
+            $avant = (float) $stock->quantite;
+            $apres = match ($data['mode']) {
+                'inventaire' => (float) $data['quantite'],
+                'plus' => $avant + (float) $data['quantite'],
+                'moins' => $avant - (float) $data['quantite'],
+            };
+            abort_if($apres < 0, 422, 'Stock insuffisant : la quantité deviendrait négative.');
+            $ecart = round($apres - $avant, 3);
+
+            $stock->quantite = $apres;
+            if (array_key_exists('seuil_min', $data) && $data['seuil_min'] !== null) {
+                $stock->seuil_min = $data['seuil_min'];
+            }
+            $stock->save();
+
+            if ($ecart != 0) {
+                \App\Models\MouvementStock::query()->create([
+                    'article_id' => $data['article_id'],
+                    'type_mouvement' => $ecart > 0 ? 'entree' : 'sortie',
+                    'motif' => $data['motif'] ?? 'ajustement',
+                    'quantite' => abs($ecart),
+                    'reference_type' => $data['mode'] === 'inventaire' ? 'inventaire' : 'ajustement',
+                    'utilisateur_id' => $request->user()?->id,
+                    'note' => $data['note'] ?? ($data['mode'] === 'inventaire' ? "Inventaire : {$avant} → {$apres}" : null),
+                ]);
+            }
+
+            return $stock;
+        });
+
+        return response()->json($stock);
+    }
+
+    /**
      * Articles en stock.
      * Paramètres : q, statut (en_stock|sous_seuil|rupture), famille_id, categorie_id,
      * sort (nom|quantite_asc|quantite_desc|valeur), per_page, with_stats=1.

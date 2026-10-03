@@ -33,6 +33,14 @@ import CategoryProducts from './pages/admin/CategoryProducts'
 import Marques from './pages/admin/Marques'
 import ClientProfile from './pages/admin/ClientProfile'
 import Familles from './pages/admin/Familles'
+import BonsCommande from './pages/admin/achats/BonsCommande'
+import BonCommande from './pages/admin/achats/BonCommande'
+import Receptions from './pages/admin/achats/Receptions'
+import ReceptionForm from './pages/admin/achats/ReceptionForm'
+import ReceptionDetail from './pages/admin/achats/ReceptionDetail'
+import FournisseurFiche from './pages/admin/achats/FournisseurFiche'
+import EntreesStock from './pages/admin/achats/EntreesStock'
+import PaiementsFournisseurs from './pages/admin/achats/PaiementsFournisseurs'
 
 function RootRedirect() {
   const { user, loading, hasAnyPermission } = useAuth()
@@ -70,6 +78,15 @@ function App() {
 
           {/* ── GESTION DE TRAVAIL ── */}
           <Route path="fournisseurs" element={<Fournisseurs />} />
+          <Route path="fournisseurs/:id" element={<FournisseurFiche />} />
+          <Route path="achats/commandes" element={<BonsCommande />} />
+          <Route path="achats/commandes/nouveau" element={<BonCommande />} />
+          <Route path="achats/commandes/:id" element={<BonCommande />} />
+          <Route path="achats/receptions" element={<Receptions />} />
+          <Route path="achats/receptions/nouvelle" element={<ReceptionForm />} />
+          <Route path="achats/receptions/:id" element={<ReceptionDetail />} />
+          <Route path="achats/paiements" element={<PaiementsFournisseurs />} />
+          <Route path="stock/entrees" element={<EntreesStock />} />
           <Route path="clients" element={<Clients />} />
           <Route path="clients/:clientId/profile" element={<ClientProfile />} />
           <Route path="stock" element={<Stock />} />

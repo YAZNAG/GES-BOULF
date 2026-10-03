@@ -142,12 +142,37 @@ export default function Sidebar({ open, onClose, onLogout }) {
           </NavLink>
         </div>
 
+        {/* ── ACHATS — المشتريات ── */}
+        <div className="nav-section">
+          <div className="nav-title">ACHATS — المشتريات</div>
+          <NavLink className={navItemClass} to="/admin/achats/commandes">
+            <FileText className="nav-icon" size={18} />
+            Bons de commande
+          </NavLink>
+          <NavLink className={navItemClass} to="/admin/achats/receptions">
+            <Truck className="nav-icon" size={18} />
+            Bons de réception
+          </NavLink>
+          <NavLink className={navItemClass} to="/admin/fournisseurs">
+            <Building2 className="nav-icon" size={18} />
+            Fournisseurs & crédit
+          </NavLink>
+          <NavLink className={navItemClass} to="/admin/achats/paiements">
+            <CircleDollarSign className="nav-icon" size={18} />
+            Paiements fournisseurs
+          </NavLink>
+        </div>
+
         {/* ── STOCK — المخزون ── */}
         <div className="nav-section">
           <div className="nav-title">STOCK — المخزون</div>
           <NavLink className={navItemClass} to="/admin/stock">
             <Warehouse className="nav-icon" size={18} />
-            Stock
+            Articles en stock
+          </NavLink>
+          <NavLink className={navItemClass} to="/admin/stock/entrees">
+            <ArrowDown className="nav-icon" size={18} />
+            Entrées de stock
           </NavLink>
           {/* ── Mouvement de Stock (dropdown) ── */}
           <button
@@ -174,14 +199,14 @@ export default function Sidebar({ open, onClose, onLogout }) {
               to="/admin/mouvements-stock/entree"
             >
               <ArrowRight className="nav-icon" size={18} />
-              Entrée
+              Entrée manuelle
             </NavLink>
             <NavLink
               className={navItemClass}
               to="/admin/mouvements-stock/sortie"
             >
               <ArrowRight className="nav-icon" size={18} />
-              Sortie
+              Sortie / perte
             </NavLink>
           </div>
         </div>
@@ -192,13 +217,6 @@ export default function Sidebar({ open, onClose, onLogout }) {
           <NavLink className={navItemClass} to="/admin/clients">
             <User className="nav-icon" size={18} />
             Clients
-          </NavLink>
-          <NavLink
-            className={navItemClass}
-            to="/admin/fournisseurs"
-          >
-            <Building2 className="nav-icon" size={18} />
-            Fournisseurs
           </NavLink>
         </div>
 
