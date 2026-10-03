@@ -7,6 +7,7 @@ import '../core/theme.dart';
 import 'common.dart';
 import 'paged_list.dart';
 import 'scanner.dart';
+import '../screens/clients/clients_screens.dart';
 import 'unknown_product.dart';
 
 /// Recherche d'un article par code-barres (`GET articles/lookup?code=`). Null si introuvable.
@@ -35,11 +36,25 @@ Future<Json?> pickEntity(
   Widget Function(Json)? trailing,
   String searchHint = 'Rechercher…',
   Widget? top,
+  // Bouton « Nouveau … » : crée l'élément et le renvoie directement.
+  Future<Json?> Function(BuildContext context)? onCreate,
+  String createLabel = 'Nouveau',
 }) {
   return Navigator.of(context).push<Json>(MaterialPageRoute(
     fullscreenDialog: true,
     builder: (c) => Scaffold(
       appBar: darkAppBar(title),
+      floatingActionButton: onCreate == null
+          ? null
+          : FloatingActionButton.extended(
+              heroTag: 'picker-create',
+              onPressed: () async {
+                final created = await onCreate(c);
+                if (created != null && c.mounted) Navigator.pop(c, created);
+              },
+              icon: const Icon(Icons.person_add_alt_1),
+              label: Text(createLabel),
+            ),
       body: Column(children: [
         ?top,
         Expanded(
@@ -89,6 +104,11 @@ Future<Json?> pickClient(BuildContext context) {
     trailing: (j) => j.dbl('solde') > 0
         ? Text('Crédit ${money(j['solde'])}', style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700, fontSize: 12.5))
         : const Icon(Icons.chevron_right),
+    createLabel: 'Nouveau client',
+    onCreate: (c) async {
+      final r = await Navigator.of(c).push<Object>(MaterialPageRoute(builder: (_) => const ClientForm(returnClient: true)));
+      return r is Map ? r.cast<String, dynamic>() : null;
+    },
   );
 }
 

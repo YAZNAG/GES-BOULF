@@ -332,9 +332,12 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
 
 /// Création / modification d'un client.
 class ClientForm extends StatefulWidget {
-  const ClientForm({super.key, this.client});
+  const ClientForm({super.key, this.client, this.returnClient = false});
 
   final Json? client;
+
+  /// true : renvoie le client créé (Json) au lieu de true — utilisé par la caisse pour le sélectionner aussitôt.
+  final bool returnClient;
 
   @override
   State<ClientForm> createState() => _ClientFormState();
@@ -374,14 +377,12 @@ class _ClientFormState extends State<ClientForm> {
       'actif': _actif,
     };
     try {
-      if (widget.client == null) {
-        await context.api.post('clients', body);
-      } else {
-        await context.api.put('clients/${widget.client!.integer('id')}', body);
-      }
+      final dynamic saved = widget.client == null
+          ? await context.api.post('clients', body)
+          : await context.api.put('clients/${widget.client!.integer('id')}', body);
       if (!mounted) return;
       showSuccess(context, widget.client == null ? 'Client créé.' : 'Client modifié.');
-      Navigator.pop(context, true);
+      Navigator.pop(context, widget.returnClient && saved is Map ? saved.cast<String, dynamic>() : true);
     } on ApiException catch (e) {
       if (!mounted) return;
       setState(() => _errors = e.errors);
@@ -410,13 +411,18 @@ class _ClientFormState extends State<ClientForm> {
           TextFormField(
             controller: _tel,
             keyboardType: TextInputType.phone,
-            decoration: InputDecoration(labelText: 'Téléphone', prefixIcon: const Icon(Icons.phone_outlined), errorText: _errors['telephone']?.first),
+            decoration: InputDecoration(
+              labelText: 'Téléphone (facultatif)',
+              helperText: 'Un numéro ne peut appartenir qu’à un seul client.',
+              prefixIcon: const Icon(Icons.phone_outlined),
+              errorText: _errors['telephone']?.first,
+            ),
           ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _email,
             keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(labelText: 'E-mail', prefixIcon: const Icon(Icons.mail_outline), errorText: _errors['email']?.first),
+            decoration: InputDecoration(labelText: 'E-mail (facultatif)', prefixIcon: const Icon(Icons.mail_outline), errorText: _errors['email']?.first),
           ),
           const SizedBox(height: 12),
           TextFormField(
