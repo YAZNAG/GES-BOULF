@@ -8,6 +8,7 @@ import '../../widgets/paged_list.dart';
 import '../../widgets/pickers.dart';
 import '../../widgets/scanner.dart';
 import 'product_detail_screen.dart';
+import 'quick_add_screen.dart';
 
 /// Filtre de catégorie choisi (famille ou catégorie).
 class CategoryFilter {
@@ -161,11 +162,17 @@ class _ProductsScreenState extends State<ProductsScreen> {
     final api = context.api;
     final a = await runBusy(context, () => lookupArticle(api, code));
     if (!mounted) return;
-    if (a == null) {
-      showError(context, ApiException('Aucun article pour le code « $code ».'));
-      return;
+    var article = a;
+    if (article == null) {
+      // Produit absent : proposer l'ajout avec la fiche préparée automatiquement.
+      final ajouter = await confirm(context, 'Article introuvable',
+          'Le code $code n’existe pas dans le magasin. Voulez-vous l’ajouter ? Seul le prix de vente est à saisir.',
+          ok: 'Ajouter le produit');
+      if (!ajouter || !mounted) return;
+      article = await QuickAddScreen.open(context, code);
+      if (article == null || !mounted) return;
     }
-    await context.push(ProductDetailScreen(articleId: a.integer('id'), initial: a));
+    await context.push(ProductDetailScreen(articleId: article.integer('id'), initial: article));
     _list.currentState?.reload();
   }
 

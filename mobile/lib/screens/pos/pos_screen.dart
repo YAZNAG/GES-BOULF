@@ -11,6 +11,7 @@ import '../../widgets/common.dart';
 import '../../widgets/pickers.dart';
 import '../../widgets/price_editor.dart';
 import '../../widgets/scanner.dart';
+import '../products/quick_add_screen.dart';
 import 'checkout_screen.dart';
 
 /// Article dans le panier.
@@ -169,7 +170,12 @@ class _PosScreenState extends State<PosScreen> {
           _tryAdd(a);
           return;
         }
-        // Code inconnu : on montre la recherche classique (le code a pu être saisi partiellement).
+        // Code-barres complet inconnu : proposer l'ajout immédiat du produit.
+        if (q.length >= 8) {
+          await _unknownCode(q);
+          return;
+        }
+        // Code court : peut-être un code saisi partiellement → recherche classique.
         _search.text = q;
       } catch (e) {
         if (mounted) showError(context, e);
@@ -180,9 +186,34 @@ class _PosScreenState extends State<PosScreen> {
     if (mounted && _results.length == 1) _tryAdd(_results.first);
   }
 
+  /// Code scanné absent du magasin : message, puis fiche d'ajout préremplie automatiquement.
+  Future<void> _unknownCode(String code) async {
+    final ajouter = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        icon: const Icon(Icons.qr_code_2, color: AppColors.primary, size: 36),
+        title: const Text('Article introuvable'),
+        content: Text('Le code $code n’existe pas dans le magasin.\n\n'
+            'Voulez-vous l’ajouter ? La fiche (photo, nom français et arabe) est préparée automatiquement : '
+            'il suffit d’indiquer le prix de vente.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+          FilledButton.icon(onPressed: () => Navigator.pop(c, true), icon: const Icon(Icons.add), label: const Text('Ajouter le produit')),
+        ],
+      ),
+    );
+    if (ajouter != true || !mounted) return;
+    final article = await QuickAddScreen.open(context, code);
+    if (article == null || !mounted) return;
+    _byCode[code] = article;
+    _tryAdd(article);
+  }
+
   Future<void> _scan() async {
     FocusScope.of(context).unfocus();
     final api = context.api;
+    final nav = Navigator.of(context);
+    String? inconnu;
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -191,7 +222,12 @@ class _PosScreenState extends State<PosScreen> {
           onCode: (code) async {
             try {
               final a = await lookupArticle(api, code);
-              if (a == null) return '!Aucun article pour le code $code';
+              if (a == null) {
+                // On ferme la caméra et on propose l'ajout du produit.
+                inconnu = code;
+                nav.pop();
+                return null;
+              }
               final err = _add(a);
               if (err != null) return '!$err';
               final line = _cart.firstWhere((c) => c.id == a.integer('id'));
@@ -203,6 +239,7 @@ class _PosScreenState extends State<PosScreen> {
         ),
       ),
     );
+    if (inconnu != null && mounted) await _unknownCode(inconnu!);
   }
 
   Future<void> _editQty(CartItem item) async {
