@@ -162,7 +162,8 @@ export default function SousCategories() {
               image={x.image}
               title={x.name_fr || x.nom}
               titleAr={x.name_ar}
-              pills={[{ label: `${fmtInt(x.articles_count)} produits`, tone: 'red' }]}
+              badge={`${fmtInt(x.articles_count)} produits`}
+              pills={[{ label: 'Voir les produits', tone: 'red' }]}
               onOpen={() => navigate(`/admin/produits?sous_categorie=${x.id}`)}
               onEdit={() => setModal({ mode: 'edit', item: x })}
               onDelete={() => setToDelete(x)}

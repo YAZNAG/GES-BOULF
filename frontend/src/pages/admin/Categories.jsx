@@ -168,10 +168,10 @@ export default function Categories() {
               image={c.image}
               title={c.name_fr || c.nom}
               titleAr={c.name_ar}
+              badge={`${fmtInt(c.articles_count)} produits`}
               pills={[
-                ...(!familleId && c.famille ? [{ label: c.famille.nom_fr, tone: 'gray' }] : []),
                 { label: `${fmtInt(c.sous_categories_count)} sous-catégories` },
-                { label: `${fmtInt(c.articles_count)} produits`, tone: 'red' },
+                ...(!familleId && c.famille ? [{ label: c.famille.nom_fr, tone: 'gray' }] : []),
               ]}
               onOpen={() => navigate(`/admin/categories/${c.id}`)}
               onEdit={() => setModal({ mode: 'edit', item: c })}

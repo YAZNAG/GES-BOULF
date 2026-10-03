@@ -78,6 +78,8 @@ class ImportCatalogue extends Command
             return Storage::url($path);
         };
 
+        $covers = $this->covers($imagesRoot);
+
         $byCategory = collect($data['categories'])->keyBy(fn ($c) => $c['categorie']['nom_fr']);
         $marques = Marque::query()->pluck('id', 'nom')->all();
         $actif = (bool) $this->option('actif');
@@ -90,7 +92,7 @@ class ImportCatalogue extends Command
             }
             $famille = Famille::query()->firstOrCreate(['nom_fr' => $familleFr], ['nom_ar' => $familleAr]);
             if (! $famille->image) {
-                $famille->update(['image' => $store($this->representative($byCategory[$cats[0]]), 'familles', Str::slug($familleFr))]);
+                $famille->update(['image' => $store($covers['familles'][$familleFr] ?? $this->representative($byCategory[$cats[0]]), 'familles', Str::slug($familleFr))]);
             }
 
             foreach ($cats as $catName) {
@@ -100,7 +102,7 @@ class ImportCatalogue extends Command
                     ['name_fr' => $catName, 'name_ar' => $c['categorie']['nom_ar'] ?? null]
                 );
                 if (! $category->image) {
-                    $category->update(['image' => $store($this->representative($c), 'categories', Str::slug($catName))]);
+                    $category->update(['image' => $store($covers['categories'][$catName] ?? $this->representative($c), 'categories', Str::slug($catName))]);
                 }
 
                 foreach ($c['sous_categories'] as $s) {
@@ -110,7 +112,7 @@ class ImportCatalogue extends Command
                         ['name_fr' => $sc['nom_fr'], 'name_ar' => $sc['nom_ar'] ?? null]
                     );
                     if (! $sous->image) {
-                        $sous->update(['image' => $store($this->representative(['sous_categories' => [$s]]), 'sous-categories', Str::slug($catName.'-'.$sc['nom_fr']))]);
+                        $sous->update(['image' => $store($covers['sous_categories'][$catName.'|'.$sc['nom_fr']] ?? $this->representative(['sous_categories' => [$s]]), 'sous-categories', Str::slug($catName.'-'.$sc['nom_fr']))]);
                     }
 
                     foreach ($s['produits'] as $p) {
@@ -151,6 +153,15 @@ class ImportCatalogue extends Command
         $this->info("Articles créés : {$created} ; déjà présents (code EAN) : {$skipped}.");
 
         return self::SUCCESS;
+    }
+
+    /** Visuels générés par make_covers.py (facultatifs). */
+    private function covers(string $imagesRoot): array
+    {
+        $file = $imagesRoot.'/_covers/covers.json';
+        $covers = is_file($file) ? json_decode(file_get_contents($file), true) : [];
+
+        return ($covers ?: []) + ['familles' => [], 'categories' => [], 'sous_categories' => []];
     }
 
     private function resetCatalogue(): void

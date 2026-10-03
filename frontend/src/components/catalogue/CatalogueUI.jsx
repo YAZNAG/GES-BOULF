@@ -42,7 +42,7 @@ export function Hero({ crumbs = [], title, titleAr, subtitle, image, stats = [],
   )
 }
 
-export function EntityCard({ image, title, titleAr, pills = [], onOpen, onEdit, onDelete }) {
+export function EntityCard({ image, title, titleAr, badge, pills = [], onOpen, onEdit, onDelete }) {
   return (
     <article
       className="cx-card"
@@ -53,24 +53,27 @@ export function EntityCard({ image, title, titleAr, pills = [], onOpen, onEdit, 
     >
       <div className="cx-card-media">
         {image ? <img src={image} alt="" loading="lazy" /> : <div className="cx-card-fallback">{(title || '?')[0]}</div>}
+        {badge ? <span className="cx-card-badge">{badge}</span> : null}
         {(onEdit || onDelete) && (
           <div className="cx-card-tools" onClick={(e) => e.stopPropagation()}>
             {onEdit ? (
               <button className="cx-icon-btn" type="button" title="Modifier" onClick={onEdit}>
-                <Pencil size={16} />
+                <Pencil size={15} />
               </button>
             ) : null}
             {onDelete ? (
               <button className="cx-icon-btn cx-icon-btn-danger" type="button" title="Supprimer" onClick={onDelete}>
-                <Trash2 size={16} />
+                <Trash2 size={15} />
               </button>
             ) : null}
           </div>
         )}
+        <div className="cx-card-caption">
+          <div className="cx-card-title">{title}</div>
+          {titleAr ? <div className="cx-card-ar">{titleAr}</div> : null}
+        </div>
       </div>
       <div className="cx-card-body">
-        <div className="cx-card-title">{title}</div>
-        {titleAr ? <div className="cx-card-ar">{titleAr}</div> : null}
         <div className="cx-card-meta">
           {pills.map((p) => (
             <span key={p.label} className={`cx-pill ${p.tone ? `cx-pill-${p.tone}` : ''}`}>
@@ -78,10 +81,10 @@ export function EntityCard({ image, title, titleAr, pills = [], onOpen, onEdit, 
             </span>
           ))}
         </div>
+        <span className="cx-card-go" aria-hidden>
+          <ArrowRight size={15} />
+        </span>
       </div>
-      <span className="cx-card-go" aria-hidden>
-        <ArrowRight size={16} />
-      </span>
     </article>
   )
 }

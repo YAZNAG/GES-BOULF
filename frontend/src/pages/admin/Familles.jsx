@@ -142,10 +142,10 @@ export default function Familles() {
               image={f.image}
               title={f.nom_fr || f.nom_ar}
               titleAr={f.nom_fr ? f.nom_ar : null}
+              badge={`${fmtInt(f.articles_count)} produits`}
               pills={[
                 { label: `${fmtInt(f.categories_count)} catégories` },
-                { label: `${fmtInt(f.sous_categories_count)} sous-catégories` },
-                { label: `${fmtInt(f.articles_count)} produits`, tone: 'red' },
+                { label: `${fmtInt(f.sous_categories_count)} sous-catégories`, tone: 'gray' },
               ]}
               onOpen={() => navigate(`/admin/familles/${f.id}/categories`)}
               onEdit={() => setModal({ mode: 'edit', item: f })}
