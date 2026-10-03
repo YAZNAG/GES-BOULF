@@ -137,7 +137,7 @@ class ImportCatalogue extends Command
                                 'name_ar' => $p['nom_produit_ar'] ? Str::limit($p['nom_produit_ar'], 150, '') : null,
                                 'description' => $this->description($p),
                                 'unite' => 'pièce',
-                                'image' => $store($p['image_locale'] ?? null, 'articles', $code),
+                                'image' => $store(is_file("{$imagesRoot}/_packshots/{$code}.jpg") ? "_packshots/{$code}.jpg" : ($p['image_locale'] ?? null), 'articles', $code),
                                 'actif' => $actif,
                             ]);
                             $article->prix()->create(['prix_achat' => 0, 'prix_vente' => 0, 'prix_gros' => 0]);
