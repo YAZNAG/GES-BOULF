@@ -1,6 +1,7 @@
 export const TOKEN_KEY = 'gs_token'
 
-const API_BASE = 'http://localhost:8000'
+// Même domaine en production (le site et /api sont servis par le même hôte) ; VITE_API_BASE pour un autre serveur.
+const API_BASE = import.meta.env.VITE_API_BASE ?? ''
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY)
