@@ -4,6 +4,6 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Debug uniquement : autorise un serveur local en HTTP (tests). -->
+    <!-- Debug et profile uniquement (jamais en release) : autorise un serveur local en HTTP (tests). -->
     <application android:usesCleartextTraffic="true"/>
 </manifest>

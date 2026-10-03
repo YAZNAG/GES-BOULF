@@ -43,6 +43,9 @@ class _PosScreenState extends State<PosScreen> {
   Object? _searchError;
   int _gen = 0;
 
+  /// Articles déjà trouvés par code-barres (vidé après chaque vente pour reprendre les prix à jour).
+  final Map<String, Json> _byCode = {};
+
   double get _total => round2(_cart.fold(0.0, (t, e) => t + e.total));
   double get _count => _cart.fold(0.0, (t, e) => t + e.quantity);
 
@@ -154,20 +157,23 @@ class _PosScreenState extends State<PosScreen> {
     if (q.isEmpty) return;
     _debounce?.cancel();
     if (_looksLikeBarcode(q)) {
-      final gen = ++_gen;
-      setState(() => _searching = true);
+      // Chaque scan est traité indépendamment : le champ est vidé tout de suite pour le scan suivant,
+      // et l'article est ajouté à l'arrivée de la réponse (les scans rapides ne se perdent pas).
+      _clearSearch();
+      _focus.requestFocus();
       try {
-        final a = await lookupArticle(context.api, q);
-        if (!mounted || gen != _gen) return;
+        final a = _byCode[q] ?? await lookupArticle(context.api, q);
+        if (!mounted) return;
         if (a != null) {
+          _byCode[q] = a;
           _tryAdd(a);
-          _focus.requestFocus();
           return;
         }
+        // Code inconnu : on montre la recherche classique (le code a pu être saisi partiellement).
+        _search.text = q;
       } catch (e) {
         if (mounted) showError(context, e);
-      } finally {
-        if (mounted && gen == _gen) setState(() => _searching = false);
+        return;
       }
     }
     await _runSearch(q);
@@ -273,6 +279,7 @@ class _PosScreenState extends State<PosScreen> {
     await context.push(CheckoutScreen(
       items: List.of(_cart),
       onSuccess: () {
+        _byCode.clear();
         if (mounted) setState(_cart.clear);
       },
     ));
