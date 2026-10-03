@@ -12,12 +12,15 @@ import '../../widgets/pickers.dart';
 /// photo, nom français, nom arabe, marque, sous-catégorie. L'utilisateur vérifie et saisit le prix de vente.
 /// Renvoie l'article créé (ou existant) via Navigator.pop.
 class QuickAddScreen extends StatefulWidget {
-  const QuickAddScreen({super.key, required this.code});
+  const QuickAddScreen({super.key, required this.code, this.fiche});
 
   final String code;
 
-  static Future<Json?> open(BuildContext context, String code) =>
-      Navigator.of(context).push<Json>(MaterialPageRoute(builder: (_) => QuickAddScreen(code: code)));
+  /// Fiche déjà préparée (recherche lancée au moment du scan) : évite une seconde attente.
+  final Json? fiche;
+
+  static Future<Json?> open(BuildContext context, String code, {Json? fiche}) =>
+      Navigator.of(context).push<Json>(MaterialPageRoute(builder: (_) => QuickAddScreen(code: code, fiche: fiche)));
 
   @override
   State<QuickAddScreen> createState() => _QuickAddScreenState();
@@ -56,7 +59,9 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
 
   Future<void> _load() async {
     try {
-      final res = await context.api.get('articles/fiche', {'code': widget.code}) as Json;
+      final Json res = (widget.fiche != null && widget.fiche!.isNotEmpty)
+          ? {'fiche': widget.fiche}
+          : await context.api.get('articles/fiche', {'code': widget.code}) as Json;
       if (!mounted) return;
       // Créé entre-temps (autre caisse) : on le renvoie directement.
       final existant = res.obj('deja_existant');
