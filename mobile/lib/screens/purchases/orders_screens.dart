@@ -5,6 +5,7 @@ import '../../core/article.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/delete_helper.dart';
 import '../../widgets/paged_list.dart';
 import 'order_form.dart';
 import 'receipt_form.dart';
@@ -117,15 +118,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     if (!ok || !mounted) return;
     final res = await runBusy(context, () => api.post('achats/commandes/${widget.orderId}/statut', {'statut': statut}),
         success: 'Statut mis à jour.');
-    if (res != null || mounted) _view.currentState?.reload();
+    if (res != null && mounted) _view.currentState?.reload();
   }
 
-  Future<void> _delete() async {
+  Future<void> _delete(Json o) async {
     final api = context.api;
-    final ok = await confirm(context, 'Supprimer le brouillon', 'Ce bon de commande sera supprimé définitivement.', ok: 'Supprimer', danger: true);
-    if (!ok || !mounted) return;
-    final res = await runBusy(context, () => api.delete('achats/commandes/${widget.orderId}'), success: 'Bon de commande supprimé.');
-    if (res != null && mounted) Navigator.pop(context, true);
+    final done = await deleteWithFallback(
+      context,
+      what: 'le bon de commande ${o.str('numero')}',
+      confirmMessage: 'Le brouillon ${o.str('numero')} sera supprimé définitivement.',
+      delete: () => api.delete('achats/commandes/${widget.orderId}'),
+      success: 'Bon de commande supprimé.',
+    );
+    if (done && mounted) Navigator.pop(context, true);
   }
 
   @override
@@ -140,6 +145,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           final lignes = o.list('lignes');
           final receptions = o.list('receptions');
           final canReceive = statut == 'confirmee' || statut == 'partielle';
+          // Le serveur n'autorise l'annulation que d'un brouillon ou d'une commande confirmée sans réception,
+          // et le retour en brouillon que d'une commande confirmée sans réception.
+          final nothingReceived = lignes.every((l) => l.dbl('quantite_recue') <= 0) && receptions.isEmpty;
           return Column(children: [
             Expanded(
               child: RefreshIndicator(
@@ -224,23 +232,30 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ),
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
-                        onPressed: _delete,
+                        onPressed: () => _delete(o),
                         icon: const Icon(Icons.delete_outline),
                         label: const Text('Supprimer'),
                       ),
                     ]),
-                  if (canReceive)
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
-                      onPressed: () => _setStatus('annulee', 'Annuler la commande'),
-                      icon: const Icon(Icons.block),
-                      label: const Text('Annuler le reliquat'),
-                    ),
-                  if (statut == 'annulee')
-                    OutlinedButton.icon(
-                      onPressed: () => _setStatus('brouillon', 'Remettre en brouillon'),
-                      icon: const Icon(Icons.undo),
-                      label: const Text('Remettre en brouillon'),
+                  if (statut == 'confirmee' && nothingReceived)
+                    Wrap(spacing: 10, runSpacing: 10, children: [
+                      OutlinedButton.icon(
+                        onPressed: () => _setStatus('brouillon', 'Remettre en brouillon'),
+                        icon: const Icon(Icons.undo),
+                        label: const Text('Remettre en brouillon'),
+                      ),
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
+                        onPressed: () => _setStatus('annulee', 'Annuler la commande'),
+                        icon: const Icon(Icons.block),
+                        label: const Text('Annuler'),
+                      ),
+                    ]),
+                  if (statut == 'confirmee' && nothingReceived)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: Text('Pour modifier les lignes, remettez d’abord la commande en brouillon.',
+                          style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
                     ),
                 ]),
               ),

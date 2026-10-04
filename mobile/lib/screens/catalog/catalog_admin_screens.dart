@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/delete_helper.dart';
 import '../../widgets/photo_field.dart';
 
 /// Niveau de l'arborescence du catalogue : famille → catégorie → sous-catégorie.
@@ -119,13 +120,15 @@ class _LevelScreenState extends State<_LevelScreen> {
   }
 
   Future<void> _delete(Json item) async {
-    final ok = await confirm(context, 'Supprimer la ${level.singular}',
-        '« ${level.nameOf(item)} » sera supprimée. Impossible si elle contient encore des éléments.',
-        ok: 'Supprimer', danger: true);
-    if (!ok || !mounted) return;
-    final done = await runBusy(context, () => context.api.delete('${level.path}/${item.integer('id')}'),
-        success: '${level.singular[0].toUpperCase()}${level.singular.substring(1)} supprimée.');
-    if (done != null) _load();
+    final api = context.api;
+    final done = await deleteWithFallback(
+      context,
+      what: 'la ${level.singular} « ${level.nameOf(item)} »',
+      confirmMessage: '« ${level.nameOf(item)} » sera supprimée. Impossible si elle contient encore des éléments.',
+      delete: () => api.delete('${level.path}/${item.integer('id')}'),
+      success: '${level.singular[0].toUpperCase()}${level.singular.substring(1)} supprimée.',
+    );
+    if (done) _load();
   }
 
   @override
@@ -279,6 +282,7 @@ class _EntityFormState extends State<_EntityForm> {
   late final _fr = TextEditingController(text: widget.item == null ? '' : widget.level.nameOf(widget.item!));
   late final _ar = TextEditingController(text: widget.item?.str(widget.level.arKey) ?? '');
   File? _photo;
+  bool _removePhoto = false;
   bool _saving = false;
 
   @override
@@ -302,7 +306,11 @@ class _EntityFormState extends State<_EntityForm> {
       if (widget.item != null) '_method': 'PUT',
     };
     try {
-      await context.api.multipart(widget.item == null ? l.path : '${l.path}/${widget.item!.integer('id')}', fields, file: _photo);
+      final api = context.api;
+      await api.multipart(widget.item == null ? l.path : '${l.path}/${widget.item!.integer('id')}', fields, file: _photo);
+      if (widget.item != null && _photo == null && _removePhoto) {
+        await api.delete('images/${l.path}/${widget.item!.integer('id')}');
+      }
       if (!mounted) return;
       showSuccess(context, widget.item == null ? 'Ajouté.' : 'Modifié.');
       Navigator.pop(context, true);
@@ -322,7 +330,20 @@ class _EntityFormState extends State<_EntityForm> {
       body: Form(
         key: _form,
         child: ListView(padding: const EdgeInsets.all(16), children: [
-          Center(child: PhotoField(file: _photo, imagePath: widget.item?.strOrNull('image'), onChanged: (f) => setState(() => _photo = f))),
+          Center(
+            child: PhotoField(
+              file: _photo,
+              imagePath: _removePhoto ? null : widget.item?.strOrNull('image'),
+              onChanged: (f) => setState(() => _photo = f),
+              onRemove: widget.item == null ? null : () => setState(() => _removePhoto = true),
+            ),
+          ),
+          if (_removePhoto && _photo == null)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text('La photo sera supprimée à l’enregistrement.',
+                  textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+            ),
           const SizedBox(height: 20),
           TextFormField(
             controller: _fr,

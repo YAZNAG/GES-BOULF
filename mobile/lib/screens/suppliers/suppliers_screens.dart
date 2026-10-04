@@ -5,6 +5,7 @@ import '../../core/article.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/delete_helper.dart';
 import '../../widgets/paged_list.dart';
 import '../../widgets/pickers.dart';
 import '../purchases/orders_screens.dart';
@@ -74,8 +75,11 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
           final plafond = f.dblOrNull('plafond_credit');
           final over = plafond != null && plafond > 0 && f.dbl('solde') > plafond;
           return ListTile(
-            leading: ItemThumb(label: f.str('nom'), color: AppColors.info, size: 44),
-            title: Text(f.str('nom'), style: const TextStyle(fontWeight: FontWeight.w700)),
+            leading: ItemThumb(label: f.str('nom'), color: f.flag('actif', true) ? AppColors.info : AppColors.muted, size: 44),
+            title: Row(children: [
+              Flexible(child: Text(f.str('nom'), overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
+              if (!f.flag('actif', true)) const Padding(padding: EdgeInsets.only(left: 6), child: Badge2('Inactif')),
+            ]),
             subtitle: Text(
               [
                 ?f.strOrNull('ville'),
@@ -221,6 +225,71 @@ class _SupplierPaymentSheetState extends State<_SupplierPaymentSheet> {
   }
 }
 
+/// Annule un règlement fournisseur (DELETE achats/paiements/{id}) : le montant redevient dû. Renvoie true si annulé.
+Future<bool> cancelSupplierPayment(BuildContext context, {required int paymentId, required Object? amount, String? supplierName}) async {
+  final api = context.api;
+  final ok = await confirm(
+    context,
+    'Annuler ce règlement',
+    'Le règlement de ${money(amount)}${supplierName == null ? '' : ' à $supplierName'} sera annulé : '
+        'ce montant redeviendra dû au fournisseur (son crédit augmente).',
+    ok: 'Annuler le règlement',
+    danger: true,
+  );
+  if (!ok || !context.mounted) return false;
+  final res = await runBusy<bool>(context, () async {
+    await api.delete('achats/paiements/$paymentId');
+    return true;
+  }, success: 'Règlement annulé.');
+  return res == true;
+}
+
+Future<void> _editSupplier(BuildContext context, Json f, Future<void> Function() reload) async {
+  final ok = await context.push<bool>(SupplierForm(supplier: f));
+  if (ok == true) reload();
+}
+
+Future<void> _toggleSupplier(BuildContext context, Json f, Future<void> Function() reload) async {
+  final api = context.api;
+  final actif = f.flag('actif', true);
+  final ok = await confirm(
+    context,
+    actif ? 'Désactiver le fournisseur' : 'Activer le fournisseur',
+    actif
+        ? '« ${f.str('nom')} » ne sera plus proposé pour les commandes et réceptions. Son historique et son crédit sont conservés.'
+        : '« ${f.str('nom')} » sera de nouveau proposé pour les commandes et réceptions.',
+    ok: actif ? 'Désactiver' : 'Activer',
+    danger: actif,
+  );
+  if (!ok || !context.mounted) return;
+  final res = await runBusy(context, () => api.put('fournisseurs/${f.integer('id')}', {'actif': !actif}),
+      success: actif ? 'Fournisseur désactivé.' : 'Fournisseur activé.');
+  if (res != null) reload();
+}
+
+Future<void> _deleteSupplier(BuildContext context, Json f, Future<void> Function() reload) async {
+  final api = context.api;
+  final id = f.integer('id');
+  var deleted = false;
+  final changed = await deleteWithFallback(
+    context,
+    what: 'le fournisseur « ${f.str('nom')} »',
+    delete: () async {
+      await api.delete('fournisseurs/$id');
+      deleted = true;
+    },
+    deactivate: f.flag('actif', true) ? () => api.put('fournisseurs/$id', {'actif': false}) : null,
+    success: 'Fournisseur supprimé.',
+    deactivated: 'Fournisseur désactivé.',
+  );
+  if (!changed || !context.mounted) return;
+  if (deleted) {
+    Navigator.of(context).pop(true);
+  } else {
+    reload();
+  }
+}
+
 /// Fiche fournisseur : crédit, achats, actions (régler, relevé, documents).
 class SupplierDetailScreen extends StatelessWidget {
   const SupplierDetailScreen({super.key, required this.supplierId});
@@ -253,16 +322,40 @@ class SupplierDetailScreen extends StatelessWidget {
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(f.str('nom'), style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800)),
-                        Text([?f.strOrNull('code'), ?f.strOrNull('ville')].join(' · '), style: const TextStyle(color: Colors.white60)),
+                        Text([?f.strOrNull('code'), ?f.strOrNull('ville'), if (!f.flag('actif', true)) 'Désactivé'].join(' · '),
+                            style: TextStyle(color: f.flag('actif', true) ? Colors.white60 : const Color(0xFFFCA5A5))),
                       ]),
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined, color: Colors.white),
                       tooltip: 'Modifier',
-                      onPressed: () async {
-                        final ok = await context.push<bool>(SupplierForm(supplier: f));
-                        if (ok == true) reload();
+                      onPressed: () => _editSupplier(context, f, reload),
+                    ),
+                    PopupMenuButton<String>(
+                      tooltip: 'Actions',
+                      icon: const Icon(Icons.more_vert, color: Colors.white),
+                      onSelected: (v) => switch (v) {
+                        'edit' => _editSupplier(context, f, reload),
+                        'toggle' => _toggleSupplier(context, f, reload),
+                        _ => _deleteSupplier(context, f, reload),
                       },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Modifier'))),
+                        PopupMenuItem(
+                          value: 'toggle',
+                          child: ListTile(
+                            leading: Icon(f.flag('actif', true) ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                            title: Text(f.flag('actif', true) ? 'Désactiver' : 'Activer'),
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: ListTile(
+                            leading: Icon(Icons.delete_outline, color: AppColors.danger),
+                            title: Text('Supprimer', style: TextStyle(color: AppColors.danger)),
+                          ),
+                        ),
+                      ],
                     ),
                   ]),
                   const SizedBox(height: 16),
@@ -300,7 +393,10 @@ class SupplierDetailScreen extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(minimumSize: const Size(64, 50)),
-                    onPressed: () => context.push(SupplierStatementScreen(supplierId: supplierId, name: f.str('nom'))),
+                    onPressed: () async {
+                      await context.push(SupplierStatementScreen(supplierId: supplierId, name: f.str('nom')));
+                      reload();
+                    },
                     icon: const Icon(Icons.summarize_outlined),
                     label: const Text('Relevé'),
                   ),
@@ -340,7 +436,10 @@ class SupplierDetailScreen extends StatelessWidget {
                     leading: const IconSquare(Icons.history, color: AppColors.violet),
                     title: const Text('Paiements', style: TextStyle(fontWeight: FontWeight.w600)),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push(SupplierPaymentsScreen(supplierId: supplierId, supplierName: f.str('nom'))),
+                    onTap: () async {
+                      await context.push(SupplierPaymentsScreen(supplierId: supplierId, supplierName: f.str('nom')));
+                      reload();
+                    },
                   ),
                 ]),
               ),
@@ -398,6 +497,13 @@ class SupplierStatementScreen extends StatelessWidget {
                     color: Colors.white,
                     margin: const EdgeInsets.only(bottom: 1),
                     child: ListTile(
+                      onLongPress: l.str('type') == 'paiement' && l.intOrNull('id') != null
+                          ? () async {
+                              if (await cancelSupplierPayment(context, paymentId: l.integer('id'), amount: l['credit'], supplierName: name)) {
+                                reload();
+                              }
+                            }
+                          : null,
                       leading: IconSquare(
                         l.str('type') == 'paiement' ? Icons.payments_outlined : Icons.move_to_inbox_outlined,
                         color: l.str('type') == 'paiement' ? AppColors.success : AppColors.info,
@@ -405,13 +511,34 @@ class SupplierStatementScreen extends StatelessWidget {
                       title: Text(l.str('libelle'), maxLines: 2, overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                       subtitle: Text('${date(l['date'])} · solde ${money(l['solde'])}'),
-                      trailing: Text(
-                        l.dbl('debit') > 0 ? '+ ${money(l['debit'])}' : '− ${money(l['credit'])}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: l.dbl('debit') > 0 ? AppColors.danger : AppColors.success,
+                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(
+                          l.dbl('debit') > 0 ? '+ ${money(l['debit'])}' : '− ${money(l['credit'])}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            color: l.dbl('debit') > 0 ? AppColors.danger : AppColors.success,
+                          ),
                         ),
-                      ),
+                        if (l.str('type') == 'paiement' && l.intOrNull('id') != null)
+                          PopupMenuButton<String>(
+                            tooltip: 'Actions',
+                            padding: EdgeInsets.zero,
+                            onSelected: (_) async {
+                              if (await cancelSupplierPayment(context, paymentId: l.integer('id'), amount: l['credit'], supplierName: name)) {
+                                reload();
+                              }
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(
+                                value: 'cancel',
+                                child: ListTile(
+                                  leading: Icon(Icons.undo, color: AppColors.danger),
+                                  title: Text('Annuler ce règlement', style: TextStyle(color: AppColors.danger)),
+                                ),
+                              ),
+                            ],
+                          ),
+                      ]),
                     ),
                   ),
             ]),
@@ -439,7 +566,12 @@ class SupplierPaymentsScreen extends StatelessWidget {
         emptyIcon: Icons.payments_outlined,
         emptyTitle: 'Aucun paiement',
         fetch: (page, q) => api.page('achats/paiements', (j) => j, page: page, query: {'fournisseur_id': supplierId}),
-        itemBuilder: (ctx, p, _) => ListTile(
+        itemBuilder: (ctx, p, reload) => ListTile(
+          onLongPress: () async {
+            if (await cancelSupplierPayment(ctx, paymentId: p.integer('id'), amount: p['montant'], supplierName: p.obj('fournisseur')?.strOrNull('nom'))) {
+              reload();
+            }
+          },
           leading: IconSquare(PaymentModePicker.icon(p.str('mode')), color: AppColors.success),
           title: Text(p.obj('fournisseur')?.str('nom') ?? '—', style: const TextStyle(fontWeight: FontWeight.w700)),
           subtitle: Text(
@@ -451,7 +583,28 @@ class SupplierPaymentsScreen extends StatelessWidget {
             ].join(' · '),
             style: const TextStyle(fontSize: 12.5),
           ),
-          trailing: Text(money(p['montant']), style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.success)),
+          trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+            Text(money(p['montant']), style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.success)),
+            PopupMenuButton<String>(
+              tooltip: 'Actions',
+              padding: EdgeInsets.zero,
+              onSelected: (_) async {
+                if (await cancelSupplierPayment(ctx,
+                    paymentId: p.integer('id'), amount: p['montant'], supplierName: p.obj('fournisseur')?.strOrNull('nom'))) {
+                  reload();
+                }
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'cancel',
+                  child: ListTile(
+                    leading: Icon(Icons.undo, color: AppColors.danger),
+                    title: Text('Annuler ce règlement', style: TextStyle(color: AppColors.danger)),
+                  ),
+                ),
+              ],
+            ),
+          ]),
         ),
       ),
     );

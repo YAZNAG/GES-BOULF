@@ -1,9 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
+import '../../core/article.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/delete_helper.dart';
 import '../../widgets/paged_list.dart';
+import '../../widgets/photo_field.dart';
 
 /// Configuration d'une table de référence simple (unités, marques).
 class RefConfig {
@@ -14,6 +19,7 @@ class RefConfig {
     required this.icon,
     this.hasActive = false,
     this.nameMax = 100,
+    this.imageType,
   });
 
   final String title;
@@ -23,8 +29,12 @@ class RefConfig {
   final bool hasActive;
   final int nameMax;
 
+  /// Type pour `images/{type}/{id}` (photo modifiable), ou null.
+  final String? imageType;
+
   static const unites = RefConfig(title: 'Unités', singular: 'unité', path: 'unites', icon: Icons.straighten, hasActive: true, nameMax: 20);
-  static const marques = RefConfig(title: 'Marques', singular: 'marque', path: 'marques', icon: Icons.verified_outlined);
+  static const marques =
+      RefConfig(title: 'Marques', singular: 'marque', path: 'marques', icon: Icons.verified_outlined, imageType: 'marques');
 }
 
 /// Liste CRUD d'une table de référence.
@@ -59,13 +69,17 @@ class _RefListScreenState extends State<RefListScreen> {
 
   Future<void> _delete(Json item) async {
     final api = context.api;
-    final ok = await confirm(context, 'Supprimer', 'Supprimer « ${item.str('nom')} » ?', ok: 'Supprimer', danger: true);
-    if (!ok || !mounted) return;
-    final res = await runBusy(context, () async {
-      await api.delete('${c.path}/${item.integer('id')}');
-      return true;
-    }, success: 'Supprimé.');
-    if (res == true) _refresh();
+    final id = item.integer('id');
+    final done = await deleteWithFallback(
+      context,
+      what: 'la ${c.singular} « ${item.str('nom')} »',
+      delete: () => api.delete('${c.path}/$id'),
+      // Unités : on peut les désactiver si elles sont utilisées par des produits.
+      deactivate: c.hasActive && item.flag('actif', true) ? () => api.put('${c.path}/$id', {'actif': false}) : null,
+      success: '${c.singular[0].toUpperCase()}${c.singular.substring(1)} supprimée.',
+      deactivated: '${c.singular[0].toUpperCase()}${c.singular.substring(1)} désactivée.',
+    );
+    if (done) _refresh();
   }
 
   @override
@@ -96,7 +110,7 @@ class _RefListScreenState extends State<RefListScreen> {
           final actif = it.flag('actif', true);
           return ListTile(
             leading: c.path == 'marques'
-                ? ItemThumb(path: it['image_url'] ?? it['image'], label: it.str('nom'), color: AppColors.info, size: 40)
+                ? ItemThumb(path: brandImagePath(it), label: it.str('nom'), color: AppColors.info, size: 40)
                 : IconSquare(c.icon, color: actif ? AppColors.primary : AppColors.muted),
             title: Text(it.str('nom'), style: const TextStyle(fontWeight: FontWeight.w700)),
             subtitle: it.strOrNull('description') == null ? null : Text(it.str('description'), maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -138,8 +152,12 @@ class _RefSheetState extends State<_RefSheet> {
   late final _nom = TextEditingController(text: widget.item?.str('nom'));
   late final _desc = TextEditingController(text: widget.item?.str('description'));
   late bool _actif = widget.item?.flag('actif', true) ?? true;
+  File? _photo;
+  bool _removePhoto = false;
   bool _busy = false;
   Map<String, List<String>> _errors = {};
+
+  String? get _imagePath => widget.item == null ? null : brandImagePath(widget.item!);
 
   @override
   void dispose() {
@@ -163,11 +181,18 @@ class _RefSheetState extends State<_RefSheet> {
       'description': _desc.text.trim().isEmpty ? null : _desc.text.trim(),
       if (c.hasActive) 'actif': _actif,
     };
+    final api = context.api;
     try {
-      if (widget.item == null) {
-        await context.api.post(c.path, body);
-      } else {
-        await context.api.put('${c.path}/${widget.item!.integer('id')}', body);
+      final dynamic saved = widget.item == null
+          ? await api.post(c.path, body)
+          : await api.put('${c.path}/${widget.item!.integer('id')}', body);
+      final id = widget.item?.integer('id') ?? (saved is Map ? saved.cast<String, dynamic>().intOrNull('id') : null);
+      if (c.imageType != null && id != null) {
+        if (_photo != null) {
+          await api.multipart('images/${c.imageType}/$id', {}, file: _photo);
+        } else if (_removePhoto && widget.item != null) {
+          await api.delete('images/${c.imageType}/$id');
+        }
       }
       if (!mounted) return;
       showSuccess(context, 'Enregistré.');
@@ -193,9 +218,27 @@ class _RefSheetState extends State<_RefSheet> {
           Text(widget.item == null ? 'Nouvelle ${c.singular}' : 'Modifier la ${c.singular}',
               style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
           const SizedBox(height: 16),
+          if (c.imageType != null) ...[
+            Center(
+              child: PhotoField(
+                size: 110,
+                file: _photo,
+                imagePath: _removePhoto ? null : _imagePath,
+                onChanged: (f) => setState(() => _photo = f),
+                onRemove: widget.item == null ? null : () => setState(() => _removePhoto = true),
+              ),
+            ),
+            if (_removePhoto && _photo == null)
+              const Padding(
+                padding: EdgeInsets.only(top: 4),
+                child: Text('La photo sera supprimée à l’enregistrement.',
+                    textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+              ),
+            const SizedBox(height: 12),
+          ],
           TextField(
             controller: _nom,
-            autofocus: true,
+            autofocus: widget.item == null,
             maxLength: c.nameMax,
             decoration: InputDecoration(labelText: 'Nom *', errorText: _errors['nom']?.first),
           ),

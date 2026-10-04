@@ -76,3 +76,10 @@ const paymentModes = [
   ('cheque', 'Chèque'),
   ('virement', 'Virement'),
 ];
+
+/// Image d'une marque : `image` déjà « /storage/… » ou URL (photo changée depuis l'app), sinon `image_url`.
+String? brandImagePath(Json m) {
+  final img = m.strOrNull('image');
+  if (img != null && (img.startsWith('/') || img.startsWith('http'))) return img;
+  return m.strOrNull('image_url') ?? img;
+}

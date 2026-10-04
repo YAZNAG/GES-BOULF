@@ -23,6 +23,8 @@ class Marque extends Model
     {
         if (!$this->image) return null;
         if (str_starts_with($this->image, 'http')) return $this->image;
+        // Chemin déjà public (« /storage/… ») : ne pas le préfixer une seconde fois.
+        if (str_starts_with($this->image, '/')) return asset(ltrim($this->image, '/'));
         return asset(Storage::url($this->image));
     }
 

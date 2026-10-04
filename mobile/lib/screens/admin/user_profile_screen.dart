@@ -64,12 +64,57 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     }
   }
 
+  Future<void> _toggle() async {
+    final u = _user;
+    if (u == null) return;
+    if (await toggleUserActive(context, u)) _view.currentState?.reload();
+  }
+
+  Future<void> _delete() async {
+    final u = _user;
+    if (u == null) return;
+    final res = await deleteUser(context, u);
+    if (!mounted || res == null) return;
+    if (res == 'deleted') {
+      Navigator.of(context).pop(true);
+    } else {
+      _view.currentState?.reload();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final canEdit = context.session.canAny(const ['utilisateurs.manage', 'systeme.settings']);
+    final me = context.session.user?.integer('id');
+    final isMe = widget.self || widget.userId == me;
+    final actif = _user?.flag('actif', true) ?? true;
     return Scaffold(
       appBar: darkAppBar(widget.self ? 'Mon profil' : 'Profil utilisateur', actions: [
         if (canEdit && _user != null) IconButton(tooltip: 'Modifier', icon: const Icon(Icons.edit_outlined), onPressed: _edit),
+        if (canEdit && _user != null && !isMe)
+          PopupMenuButton<String>(
+            tooltip: 'Actions',
+            onSelected: (v) => switch (v) {
+              'toggle' => _toggle(),
+              _ => _delete(),
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                value: 'toggle',
+                child: ListTile(
+                  leading: Icon(actif ? Icons.block : Icons.check_circle_outline),
+                  title: Text(actif ? 'Désactiver le compte' : 'Activer le compte'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: ListTile(
+                  leading: Icon(Icons.delete_outline, color: AppColors.danger),
+                  title: Text('Supprimer', style: TextStyle(color: AppColors.danger)),
+                ),
+              ),
+            ],
+          ),
       ]),
       body: Column(children: [
         Container(

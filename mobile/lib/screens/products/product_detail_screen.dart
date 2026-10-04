@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/delete_helper.dart';
+import '../../widgets/photo_field.dart';
 import '../../widgets/price_editor.dart';
 import '../../widgets/stock_adjust.dart';
+import 'product_edit_screen.dart';
 
 /// Fiche article : photo, noms FR/AR, prix, marge, stock, description. Renvoie true si modifié.
 class ProductDetailScreen extends StatefulWidget {
@@ -23,8 +27,138 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   final _view = GlobalKey<AsyncViewState<Json>>();
   bool _changed = false;
+  Json? _article;
 
-  Future<Json> _load() async => (await context.api.get('articles/${widget.articleId}') as Map).cast<String, dynamic>();
+  Future<Json> _load() async {
+    final a = (await context.api.get('articles/${widget.articleId}') as Map).cast<String, dynamic>();
+    if (mounted) setState(() => _article = a);
+    return a;
+  }
+
+  void _reload() {
+    _changed = true;
+    _view.currentState?.reload();
+  }
+
+  Future<void> _editRecord(Json a) async {
+    final ok = await context.push<bool>(ProductEditScreen(article: a));
+    if (ok == true) _reload();
+  }
+
+  Future<void> _setActive(Json a, bool actif) async {
+    final api = context.api;
+    final ok = await runBusy<bool>(context, () async {
+      await api.put('tarifs/${a.integer('id')}', {'actif': actif});
+      return true;
+    }, success: actif ? 'Article activé.' : 'Article désactivé.');
+    if (ok == true) _reload();
+  }
+
+  Future<void> _toggleActive(Json a) async {
+    final actif = a.isActive;
+    final ok = await confirm(
+      context,
+      actif ? 'Désactiver l’article' : 'Activer l’article',
+      actif
+          ? '« ${a.articleName} » ne pourra plus être vendu en caisse. Son historique est conservé.'
+          : '« ${a.articleName} » pourra de nouveau être vendu (s’il a un prix de vente).',
+      ok: actif ? 'Désactiver' : 'Activer',
+      danger: actif,
+    );
+    if (ok && mounted) await _setActive(a, !actif);
+  }
+
+  /// Suppression : on vérifie d'abord les utilisations (ventes, réceptions…) ; sinon on propose de désactiver.
+  Future<void> _delete(Json a) async {
+    final api = context.api;
+    final id = a.integer('id');
+    final usage = await runBusy(context, () async => (await api.get('articles/$id/usage') as Map).cast<String, dynamic>());
+    if (usage == null || !mounted) return;
+    final actif = usage.flag('actif', a.isActive);
+    if (!usage.flag('supprimable')) {
+      final deactivate = await showInUseDialog(
+        context,
+        message: actif
+            ? 'Cet article est utilisé dans l’historique : il ne peut pas être supprimé. Vous pouvez le désactiver à la place.'
+            : 'Cet article est utilisé dans l’historique : il ne peut pas être supprimé. Il est déjà désactivé.',
+        usages: usagesOf(usage['utilisations']),
+        canDeactivate: actif,
+      );
+      if (deactivate && mounted) await _setActive(a, false);
+      return;
+    }
+    var deleted = false;
+    final changed = await deleteWithFallback(
+      context,
+      what: 'l’article « ${a.articleName} »',
+      confirmMessage: '« ${a.articleName} » sera supprimé définitivement (avec son prix et son stock).',
+      delete: () async {
+        await api.delete('articles/$id');
+        deleted = true;
+      },
+      deactivate: actif ? () => api.put('tarifs/$id', {'actif': false}) : null,
+      success: 'Article supprimé.',
+      deactivated: 'Article désactivé.',
+    );
+    if (!changed || !mounted) return;
+    if (deleted) {
+      Navigator.of(context).pop(true);
+    } else {
+      _reload();
+    }
+  }
+
+  Future<void> _photoMenu(Json a) async {
+    final url = context.api.imageUrl(a['image']);
+    final action = await askPhotoAction(context, hasImage: url != null, title: 'Photo de l’article');
+    if (action == null || !mounted) return;
+    final api = context.api;
+    final id = a.integer('id');
+    switch (action) {
+      case PhotoAction.view:
+        _showImage(url!);
+      case PhotoAction.camera:
+      case PhotoAction.gallery:
+        final f = await pickPhotoFile(context, action == PhotoAction.camera ? ImageSource.camera : ImageSource.gallery);
+        if (f == null || !mounted) return;
+        final ok = await runBusy(context, () => api.multipart('images/articles/$id', {}, file: f), success: 'Photo mise à jour.');
+        if (ok != null) _reload();
+      case PhotoAction.remove:
+        final sure = await confirm(context, 'Supprimer la photo', 'La photo de « ${a.articleName} » sera supprimée.',
+            ok: 'Supprimer', danger: true);
+        if (!sure || !mounted) return;
+        final ok = await runBusy<bool>(context, () async {
+          await api.delete('images/articles/$id');
+          return true;
+        }, success: 'Photo supprimée.');
+        if (ok == true) _reload();
+    }
+  }
+
+  void _showImage(String url) {
+    showDialog(
+      context: context,
+      builder: (c) => Dialog(
+        backgroundColor: Colors.white,
+        child: InteractiveViewer(child: Padding(padding: const EdgeInsets.all(12), child: Image.network(url))),
+      ),
+    );
+  }
+
+  Future<void> _menu(String action) async {
+    final a = _article;
+    if (a == null) return;
+    switch (action) {
+      case 'edit':
+        await _editRecord(a);
+      case 'photo':
+        await _photoMenu(a);
+      case 'toggle':
+        await _toggleActive(a);
+      case 'delete':
+        await _delete(a);
+    }
+  }
 
   Future<void> _editPrices(Json a) async {
     if (await editPrices(context, a)) {
@@ -50,7 +184,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         if (!didPop) Navigator.of(context).pop(_changed);
       },
       child: Scaffold(
-        appBar: darkAppBar('Fiche article'),
+        appBar: darkAppBar('Fiche article', actions: [
+          if (_article != null)
+            PopupMenuButton<String>(
+              tooltip: 'Actions',
+              onSelected: _menu,
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Modifier la fiche'))),
+                const PopupMenuItem(value: 'photo', child: ListTile(leading: Icon(Icons.photo_camera_outlined), title: Text('Changer la photo'))),
+                PopupMenuItem(
+                  value: 'toggle',
+                  child: ListTile(
+                    leading: Icon(_article!.isActive ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                    title: Text(_article!.isActive ? 'Désactiver' : 'Activer'),
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    leading: Icon(Icons.delete_outline, color: AppColors.danger),
+                    title: Text('Supprimer', style: TextStyle(color: AppColors.danger)),
+                  ),
+                ),
+              ],
+            ),
+        ]),
         body: AsyncView<Json>(
           key: _view,
           load: _load,
@@ -73,21 +231,35 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         color: Colors.white,
         alignment: Alignment.center,
         padding: const EdgeInsets.all(16),
-        child: imageUrl == null
-            ? ItemThumb(label: a.articleName, size: 130)
-            : GestureDetector(
-                onTap: () => showDialog(
-                  context: context,
-                  builder: (c) => Dialog(
-                    backgroundColor: Colors.white,
-                    child: InteractiveViewer(child: Padding(padding: const EdgeInsets.all(12), child: Image.network(imageUrl))),
+        child: GestureDetector(
+          onTap: () => _photoMenu(a),
+          child: Stack(alignment: Alignment.center, children: [
+            imageUrl == null
+                ? Column(mainAxisSize: MainAxisSize.min, children: [
+                    ItemThumb(label: a.articleName, size: 130),
+                    const SizedBox(height: 8),
+                    const Text('Toucher pour ajouter une photo', style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                  ])
+                : Hero(
+                    tag: 'article-${a.integer('id')}',
+                    child: Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, _, _) => ItemThumb(label: a.articleName, size: 130)),
                   ),
-                ),
-                child: Hero(
-                  tag: 'article-${a.integer('id')}',
-                  child: Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, _, _) => ItemThumb(label: a.articleName, size: 130)),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Material(
+                color: Colors.white,
+                elevation: 2,
+                shape: const CircleBorder(),
+                child: IconButton(
+                  tooltip: 'Photo',
+                  icon: const Icon(Icons.photo_camera_outlined, color: AppColors.primary),
+                  onPressed: () => _photoMenu(a),
                 ),
               ),
+            ),
+          ]),
+        ),
       ),
       const Divider(height: 1),
       Padding(
@@ -185,7 +357,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             ],
           ),
           const SizedBox(height: 14),
-          SectionCard(title: 'Classement', icon: Icons.category_outlined, children: [
+          SectionCard(
+              title: 'Classement',
+              icon: Icons.category_outlined,
+              trailing: TextButton.icon(onPressed: () => _editRecord(a), icon: const Icon(Icons.edit, size: 18), label: const Text('Modifier')),
+              children: [
             InfoRow('Catégorie', path),
             InfoRow('Marque', a.brandName ?? ''),
             InfoRow('Unité', a.unit),
@@ -197,6 +373,25 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               Text(a.str('description'), style: const TextStyle(height: 1.45)),
             ]),
           ],
+          const SizedBox(height: 18),
+          Row(children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _toggleActive(a),
+                icon: Icon(a.isActive ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                label: Text(a.isActive ? 'Désactiver' : 'Activer'),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
+                onPressed: () => _delete(a),
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Supprimer'),
+              ),
+            ),
+          ]),
         ]),
       ),
     ]);

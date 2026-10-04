@@ -5,6 +5,7 @@ import '../../core/article.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/delete_helper.dart';
 import '../../widgets/paged_list.dart';
 import '../../widgets/pickers.dart';
 import '../sales/sales_screens.dart';
@@ -63,7 +64,10 @@ class _ClientsScreenState extends State<ClientsScreen> {
         fetch: (page, q) => api.page('m/clients', (j) => j, page: page, query: {'q': q, if (_credit) 'avec_credit': 1}),
         itemBuilder: (ctx, c, reload) => ListTile(
           leading: ItemThumb(label: c.str('nom'), color: AppColors.violet, size: 44),
-          title: Text(c.str('nom'), style: const TextStyle(fontWeight: FontWeight.w700)),
+          title: Row(children: [
+            Flexible(child: Text(c.str('nom'), overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
+            if (!c.flag('actif', true)) const Padding(padding: EdgeInsets.only(left: 6), child: Badge2('Inactif')),
+          ]),
           subtitle: Text(
             [
               c.strOrNull('telephone') ?? 'Pas de téléphone',
@@ -207,6 +211,51 @@ class ClientDetailScreen extends StatefulWidget {
 class _ClientDetailScreenState extends State<ClientDetailScreen> {
   final _view = GlobalKey<AsyncViewState<Json>>();
 
+  Future<void> _edit(Json c, Future<void> Function() reload) async {
+    final ok = await context.push<bool>(ClientForm(client: c));
+    if (ok == true) reload();
+  }
+
+  Future<void> _toggle(Json c, Future<void> Function() reload) async {
+    final api = context.api;
+    final actif = c.flag('actif', true);
+    final ok = await confirm(
+      context,
+      actif ? 'Désactiver le client' : 'Activer le client',
+      actif
+          ? '« ${c.str('nom')} » ne sera plus proposé en caisse. Son historique et son crédit sont conservés.'
+          : '« ${c.str('nom')} » sera de nouveau proposé en caisse.',
+      ok: actif ? 'Désactiver' : 'Activer',
+      danger: actif,
+    );
+    if (!ok || !mounted) return;
+    final res = await runBusy(context, () => api.put('clients/${widget.clientId}', {'actif': !actif}),
+        success: actif ? 'Client désactivé.' : 'Client activé.');
+    if (res != null) reload();
+  }
+
+  Future<void> _delete(Json c, Future<void> Function() reload) async {
+    final api = context.api;
+    var deleted = false;
+    final changed = await deleteWithFallback(
+      context,
+      what: 'le client « ${c.str('nom')} »',
+      delete: () async {
+        await api.delete('clients/${widget.clientId}');
+        deleted = true;
+      },
+      deactivate: c.flag('actif', true) ? () => api.put('clients/${widget.clientId}', {'actif': false}) : null,
+      success: 'Client supprimé.',
+      deactivated: 'Client désactivé.',
+    );
+    if (!changed || !mounted) return;
+    if (deleted) {
+      Navigator.of(context).pop(true);
+    } else {
+      reload();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -237,16 +286,43 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(c.str('nom'), style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800)),
-                        Text(c.str('type_client') == 'gros' ? 'Client gros' : 'Client détail', style: const TextStyle(color: Colors.white60)),
+                        Text(
+                          [c.str('type_client') == 'gros' ? 'Client gros' : 'Client détail', if (!c.flag('actif', true)) 'Désactivé']
+                              .join(' · '),
+                          style: TextStyle(color: c.flag('actif', true) ? Colors.white60 : const Color(0xFFFCA5A5)),
+                        ),
                       ]),
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined, color: Colors.white),
                       tooltip: 'Modifier',
-                      onPressed: () async {
-                        final ok = await context.push<bool>(ClientForm(client: c));
-                        if (ok == true) reload();
+                      onPressed: () => _edit(c, reload),
+                    ),
+                    PopupMenuButton<String>(
+                      tooltip: 'Actions',
+                      icon: const Icon(Icons.more_vert, color: Colors.white),
+                      onSelected: (v) => switch (v) {
+                        'edit' => _edit(c, reload),
+                        'toggle' => _toggle(c, reload),
+                        _ => _delete(c, reload),
                       },
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Modifier'))),
+                        PopupMenuItem(
+                          value: 'toggle',
+                          child: ListTile(
+                            leading: Icon(c.flag('actif', true) ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                            title: Text(c.flag('actif', true) ? 'Désactiver' : 'Activer'),
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: ListTile(
+                            leading: Icon(Icons.delete_outline, color: AppColors.danger),
+                            title: Text('Supprimer', style: TextStyle(color: AppColors.danger)),
+                          ),
+                        ),
+                      ],
                     ),
                   ]),
                   const SizedBox(height: 16),

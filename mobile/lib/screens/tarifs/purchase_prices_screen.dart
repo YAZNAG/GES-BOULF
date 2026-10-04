@@ -127,7 +127,10 @@ class _PurchasePricesScreenState extends State<PurchasePricesScreen> {
       onTap: () async {
         if (await _edit(a)) reload();
       },
-      onLongPress: () => ctx.push(ProductDetailScreen(articleId: a.integer('id'))),
+      onLongPress: () async {
+        final changed = await ctx.push<bool>(ProductDetailScreen(articleId: a.integer('id')));
+        if (changed == true) reload();
+      },
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
         child: Row(children: [

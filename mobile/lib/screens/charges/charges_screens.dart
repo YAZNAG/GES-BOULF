@@ -7,6 +7,7 @@ import '../../core/article.dart';
 import '../../core/format.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/delete_helper.dart';
 import '../../widgets/photo_field.dart';
 import '../../widgets/pickers.dart';
 
@@ -231,6 +232,7 @@ class _ChargeFormScreenState extends State<ChargeFormScreen> {
   late int? _categorie = widget.charge?.intOrNull('categorie_charge_id');
   List<Json>? _categories;
   File? _piece;
+  bool _removePiece = false;
   bool _saving = false;
 
   @override
@@ -265,7 +267,8 @@ class _ChargeFormScreenState extends State<ChargeFormScreen> {
     setState(() => _saving = true);
     try {
       final edit = widget.charge != null;
-      await context.api.multipart(edit ? 'charges/${widget.charge!.integer('id')}' : 'charges', {
+      final api = context.api;
+      await api.multipart(edit ? 'charges/${widget.charge!.integer('id')}' : 'charges', {
         'categorie_charge_id': _categorie,
         'libelle': _libelle.text.trim(),
         'montant': parseInput(_montant.text),
@@ -276,6 +279,9 @@ class _ChargeFormScreenState extends State<ChargeFormScreen> {
         'note': _note.text.trim(),
         if (edit) '_method': 'PUT',
       }, file: _piece, fileField: 'piece');
+      if (edit && _piece == null && _removePiece) {
+        await api.delete('images/charges/${widget.charge!.integer('id')}');
+      }
       if (!mounted) return;
       showSuccess(context, edit ? 'Charge modifiée.' : 'Charge enregistrée.');
       Navigator.pop(context, true);
@@ -287,10 +293,15 @@ class _ChargeFormScreenState extends State<ChargeFormScreen> {
   }
 
   Future<void> _delete() async {
-    final ok = await confirm(context, 'Supprimer la charge', '« ${widget.charge!.str('libelle')} » sera supprimée.', ok: 'Supprimer', danger: true);
-    if (!ok || !mounted) return;
-    final res = await runBusy(context, () => context.api.delete('charges/${widget.charge!.integer('id')}'), success: 'Charge supprimée.');
-    if (res != null && mounted) Navigator.pop(context, true);
+    final api = context.api;
+    final done = await deleteWithFallback(
+      context,
+      what: 'la charge « ${widget.charge!.str('libelle')} »',
+      confirmMessage: '« ${widget.charge!.str('libelle')} » sera supprimée.',
+      delete: () => api.delete('charges/${widget.charge!.integer('id')}'),
+      success: 'Charge supprimée.',
+    );
+    if (done && mounted) Navigator.pop(context, true);
   }
 
   @override
@@ -355,7 +366,21 @@ class _ChargeFormScreenState extends State<ChargeFormScreen> {
           const SizedBox(height: 12),
           TextFormField(controller: _note, maxLines: 2, decoration: const InputDecoration(labelText: 'Note')),
           const GroupLabel('Justificatif'),
-          Center(child: PhotoField(file: _piece, imagePath: widget.charge?.strOrNull('piece'), onChanged: (f) => setState(() => _piece = f), size: 160)),
+          Center(
+            child: PhotoField(
+              file: _piece,
+              imagePath: _removePiece ? null : widget.charge?.strOrNull('piece'),
+              onChanged: (f) => setState(() => _piece = f),
+              onRemove: widget.charge == null ? null : () => setState(() => _removePiece = true),
+              size: 160,
+            ),
+          ),
+          if (_removePiece && _piece == null)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text('Le justificatif sera supprimé à l’enregistrement.',
+                  textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+            ),
         ]),
       ),
       bottomNavigationBar: BottomAction(label: 'Enregistrer', busy: _saving, onPressed: _save),

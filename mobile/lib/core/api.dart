@@ -6,11 +6,20 @@ import 'package:http/http.dart' as http;
 
 /// Erreur renvoyée par l'API (format Laravel : {message, errors?}).
 class ApiException implements Exception {
-  ApiException(this.message, {this.status = 0, this.errors = const {}});
+  ApiException(this.message, {this.status = 0, this.errors = const {}, this.code, this.data = const {}});
 
   final String message;
   final int status;
   final Map<String, List<String>> errors;
+
+  /// Code applicatif éventuel (ex. `EN_UTILISATION`, `FK_CONSTRAINT`).
+  final String? code;
+
+  /// Corps JSON complet de la réponse d'erreur (ex. `utilisations`, `desactivable`).
+  final Map<String, dynamic> data;
+
+  /// Élément lié ailleurs (suppression refusée) : HTTP 409.
+  bool get isConflict => status == 409;
 
   bool get isUnauthenticated => status == 401;
 
@@ -176,7 +185,7 @@ class ApiClient {
       message = _defaultMessage(res.statusCode);
     }
     if (res.statusCode == 401) message = 'Session expirée. Reconnectez-vous.';
-    final ex = ApiException(message, status: res.statusCode, errors: errors);
+    final ex = ApiException(message, status: res.statusCode, errors: errors, code: json['code']?.toString(), data: json);
     if (ex.isUnauthenticated && token != null) onUnauthenticated?.call();
     throw ex;
   }

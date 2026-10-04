@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/delete_helper.dart';
 import '../../widgets/paged_list.dart';
 import '../../widgets/pickers.dart';
 import 'user_profile_screen.dart';
@@ -17,6 +18,47 @@ String roleLabel(String r) => switch (r.toLowerCase()) {
       _ => r[0].toUpperCase() + r.substring(1),
     };
 
+String userFullName(Json u) => [u.str('prenom'), u.str('nom')].where((e) => e.isNotEmpty).join(' ');
+
+/// Active / désactive un compte utilisateur (avec confirmation). Renvoie true si modifié.
+Future<bool> toggleUserActive(BuildContext context, Json u) async {
+  final api = context.api;
+  final actif = u.flag('actif', true);
+  final name = userFullName(u);
+  final ok = await confirm(
+    context,
+    actif ? 'Désactiver le compte' : 'Activer le compte',
+    actif ? '$name ne pourra plus se connecter.' : '$name pourra de nouveau se connecter.',
+    ok: actif ? 'Désactiver' : 'Activer',
+    danger: actif,
+  );
+  if (!ok || !context.mounted) return false;
+  final res = await runBusy(context, () => api.put('utilisateurs/${u.integer('id')}', {'actif': !actif}),
+      success: actif ? 'Compte désactivé.' : 'Compte activé.');
+  return res != null;
+}
+
+/// Supprime un utilisateur ; s'il a un historique, propose de le désactiver.
+/// Renvoie 'deleted', 'deactivated' ou null.
+Future<String?> deleteUser(BuildContext context, Json u) async {
+  final api = context.api;
+  final id = u.integer('id');
+  var deleted = false;
+  final changed = await deleteWithFallback(
+    context,
+    what: 'le compte de ${userFullName(u)}',
+    delete: () async {
+      await api.delete('utilisateurs/$id');
+      deleted = true;
+    },
+    deactivate: u.flag('actif', true) ? () => api.put('utilisateurs/$id', {'actif': false}) : null,
+    success: 'Utilisateur supprimé.',
+    deactivated: 'Compte désactivé.',
+  );
+  if (!changed) return null;
+  return deleted ? 'deleted' : 'deactivated';
+}
+
 /// Utilisateurs : liste, création, activation / désactivation.
 class UsersScreen extends StatefulWidget {
   const UsersScreen({super.key});
@@ -29,20 +71,47 @@ class _UsersScreenState extends State<UsersScreen> {
   final _list = GlobalKey<PagedListState<Json>>();
 
   Future<void> _toggle(Json u, VoidCallback reload) async {
-    final api = context.api;
+    if (await toggleUserActive(context, u)) reload();
+  }
+
+  Future<void> _actions(BuildContext ctx, Json u, VoidCallback reload, bool isMe) async {
     final actif = u.flag('actif', true);
-    final name = [u.str('prenom'), u.str('nom')].where((e) => e.isNotEmpty).join(' ');
-    final ok = await confirm(
-      context,
-      actif ? 'Désactiver le compte' : 'Activer le compte',
-      actif ? '$name ne pourra plus se connecter.' : '$name pourra de nouveau se connecter.',
-      ok: actif ? 'Désactiver' : 'Activer',
-      danger: actif,
+    final action = await showModalBottomSheet<String>(
+      context: ctx,
+      showDragHandle: true,
+      builder: (c) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          ListTile(title: Text(userFullName(u), style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text(u.str('email'))),
+          ListTile(leading: const Icon(Icons.person_outline), title: const Text('Voir le profil'), onTap: () => Navigator.pop(c, 'view')),
+          ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Modifier'), onTap: () => Navigator.pop(c, 'edit')),
+          if (!isMe)
+            ListTile(
+              leading: Icon(actif ? Icons.block : Icons.check_circle_outline),
+              title: Text(actif ? 'Désactiver le compte' : 'Activer le compte'),
+              onTap: () => Navigator.pop(c, 'toggle'),
+            ),
+          if (!isMe)
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: AppColors.danger),
+              title: const Text('Supprimer', style: TextStyle(color: AppColors.danger)),
+              onTap: () => Navigator.pop(c, 'delete'),
+            ),
+        ]),
+      ),
     );
-    if (!ok || !mounted) return;
-    final res = await runBusy(context, () => api.put('utilisateurs/${u.integer('id')}', {'actif': !actif}),
-        success: actif ? 'Compte désactivé.' : 'Compte activé.');
-    if (res != null) reload();
+    if (action == null || !ctx.mounted) return;
+    switch (action) {
+      case 'view':
+        await ctx.push(UserProfileScreen(userId: u.integer('id'), self: isMe));
+        reload();
+      case 'edit':
+        final ok = await ctx.push<bool>(UserForm(user: u));
+        if (ok == true) reload();
+      case 'toggle':
+        _toggle(u, reload);
+      case 'delete':
+        if (await deleteUser(ctx, u) != null) reload();
+    }
   }
 
   @override
@@ -78,19 +147,24 @@ class _UsersScreenState extends State<UsersScreen> {
             ]),
             subtitle: Text('${u.str('email')}\n${roleLabel(role)}', style: const TextStyle(fontSize: 12.5)),
             isThreeLine: true,
-            trailing: Switch(
-              value: actif,
-              activeThumbColor: AppColors.success,
-              onChanged: u.integer('id') == me ? null : (_) => _toggle(u, reload),
-            ),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              Switch(
+                value: actif,
+                activeThumbColor: AppColors.success,
+                onChanged: u.integer('id') == me ? null : (_) => _toggle(u, reload),
+              ),
+              IconButton(
+                tooltip: 'Actions',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.more_vert),
+                onPressed: () => _actions(ctx, u, reload, u.integer('id') == me),
+              ),
+            ]),
             onTap: () async {
               await ctx.push(UserProfileScreen(userId: u.integer('id'), self: u.integer('id') == me));
               reload();
             },
-            onLongPress: () async {
-              final ok = await ctx.push<bool>(UserForm(user: u));
-              if (ok == true) reload();
-            },
+            onLongPress: () => _actions(ctx, u, reload, u.integer('id') == me),
           );
         },
       ),
