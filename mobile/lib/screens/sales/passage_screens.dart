@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
@@ -10,7 +11,7 @@ import '../../widgets/pickers.dart';
 import 'sales_screens.dart';
 
 /// Nom affiché d'une vente à un client de passage.
-String passageName(Json v) => v.strOrNull('nom_passage') ?? 'Client de passage';
+String passageName(Json v) => v.strOrNull('nom_passage') ?? tr('Client de passage');
 
 /// Reste à encaisser d'une vente (montant_total − montant_paye, jamais négatif).
 double saleRemaining(Json v) {
@@ -60,11 +61,11 @@ class _PassagePaymentSheetState extends State<_PassagePaymentSheet> {
   Future<void> _save() async {
     final v = parseInput(_amount.text);
     if (v == null || v <= 0) {
-      setState(() => _errors = {'montant': ['Saisissez un montant supérieur à 0.']});
+      setState(() => _errors = {'montant': [tr('Saisissez un montant supérieur à 0.')]});
       return;
     }
     if (v > _reste + 0.001) {
-      setState(() => _errors = {'montant': ['Le montant dépasse le reste (${money(_reste)}).']});
+      setState(() => _errors = {'montant': [tr('Le montant dépasse le reste ({reste}).', {'reste': money(_reste)})]});
       return;
     }
     setState(() {
@@ -80,7 +81,11 @@ class _PassagePaymentSheetState extends State<_PassagePaymentSheet> {
       if (!mounted) return;
       final r = res is Map ? res.cast<String, dynamic>() : <String, dynamic>{};
       final reste = r.dbl('reste');
-      showSuccess(context, reste > 0.009 ? 'Encaissé ${money(v)} · reste ${money(reste)}.' : 'Encaissé ${money(v)} · vente soldée.');
+      showSuccess(
+          context,
+          reste > 0.009
+              ? tr('Encaissé {montant} · reste {reste}.', {'montant': money(v), 'reste': money(reste)})
+              : tr('Encaissé {montant} · vente soldée.', {'montant': money(v)}));
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -101,10 +106,10 @@ class _PassagePaymentSheetState extends State<_PassagePaymentSheet> {
       padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 20),
       child: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-          const Text('Encaisser le reste', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+          Text(tr('Encaisser le reste'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(
-            [passageName(v), ?tel, 'Vente n° ${v.integer('id')}'].join(' · '),
+            [passageName(v), ?tel, tr('Vente n° {id}', {'id': v.integer('id')})].join(' · '),
             style: const TextStyle(color: AppColors.muted),
           ),
           const SizedBox(height: 12),
@@ -112,9 +117,9 @@ class _PassagePaymentSheetState extends State<_PassagePaymentSheet> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(14)),
             child: Column(children: [
-              TotalLine('Total', money(v['montant_total'])),
-              TotalLine('Déjà payé', money(v['montant_paye']), color: AppColors.success),
-              TotalLine('Reste', money(_reste), bold: true, color: AppColors.danger),
+              TotalLine(tr('Total'), money(v['montant_total'])),
+              TotalLine(tr('Déjà payé'), money(v['montant_paye']), color: AppColors.success),
+              TotalLine(tr('Reste'), money(_reste), bold: true, color: AppColors.danger),
             ]),
           ),
           const SizedBox(height: 14),
@@ -125,30 +130,30 @@ class _PassagePaymentSheetState extends State<_PassagePaymentSheet> {
                 autofocus: true,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                decoration: InputDecoration(labelText: 'Montant', suffixText: 'DH', errorText: _errors['montant']?.first, errorMaxLines: 2),
+                decoration: InputDecoration(labelText: tr('Montant'), suffixText: tr('DH'), errorText: _errors['montant']?.first, errorMaxLines: 2),
               ),
             ),
             const SizedBox(width: 8),
-            TextButton(onPressed: () => setState(() => _amount.text = priceInput(_reste)), child: const Text('Tout')),
+            TextButton(onPressed: () => setState(() => _amount.text = priceInput(_reste)), child: Text(tr('Tout'))),
           ]),
           const SizedBox(height: 12),
           PaymentModePicker(value: _mode, onChanged: (m) => setState(() => _mode = m)),
           const SizedBox(height: 12),
-          TextField(controller: _note, decoration: const InputDecoration(labelText: 'Note (facultatif)')),
+          TextField(controller: _note, decoration: InputDecoration(labelText: tr('Note (facultatif)'))),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _busy ? null : _save,
             icon: _busy
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.check),
-            label: const Text('Enregistrer l’encaissement'),
+            label: Text(tr('Enregistrer l’encaissement')),
           ),
           if (widget.showSaleLink) ...[
             const SizedBox(height: 6),
             TextButton.icon(
               onPressed: () => Navigator.pop(context, 'detail'),
               icon: const Icon(Icons.receipt_long_outlined),
-              label: const Text('Voir le détail de la vente'),
+              label: Text(tr('Voir le détail de la vente')),
             ),
           ],
         ]),
@@ -187,23 +192,23 @@ class _PassageScreenState extends State<PassageScreen> {
     final api = context.api;
     final enc = _view == _PassageView.encaissements;
     return Scaffold(
-      appBar: darkAppBar('Clients de passage'),
+      appBar: darkAppBar(tr('Clients de passage')),
       body: PagedList<Json>(
         key: ValueKey(_view),
         showSearch: !enc,
-        searchHint: 'Nom ou téléphone',
+        searchHint: tr('Nom ou téléphone'),
         emptyIcon: enc ? Icons.payments_outlined : Icons.directions_walk,
         emptyTitle: switch (_view) {
-          _PassageView.impaye => 'Rien à encaisser',
-          _PassageView.tout => 'Aucune vente',
-          _PassageView.encaissements => 'Aucun encaissement',
+          _PassageView.impaye => tr('Rien à encaisser'),
+          _PassageView.tout => tr('Aucune vente'),
+          _PassageView.encaissements => tr('Aucun encaissement'),
         },
-        emptyMessage: _view == _PassageView.impaye ? 'Toutes les ventes de passage sont soldées.' : null,
+        emptyMessage: _view == _PassageView.impaye ? tr('Toutes les ventes de passage sont soldées.') : null,
         filters: FilterChips<_PassageView>(
-          options: const [
-            (_PassageView.impaye, 'À encaisser'),
-            (_PassageView.tout, 'Historique'),
-            (_PassageView.encaissements, 'Encaissements'),
+          options: [
+            (_PassageView.impaye, tr('À encaisser')),
+            (_PassageView.tout, tr('Historique')),
+            (_PassageView.encaissements, tr('Encaissements')),
           ],
           value: _view,
           onChanged: (v) {
@@ -214,9 +219,9 @@ class _PassageScreenState extends State<PassageScreen> {
           final s = _stats;
           if (s == null) return null;
           return StatsRow(children: [
-            MiniStat(label: 'Reste total', value: moneyShort(s['reste_total']), color: AppColors.danger),
-            MiniStat(label: 'Ventes impayées', value: qty(s['ventes_impayees']), color: AppColors.warning),
-            MiniStat(label: 'Encaissé ce mois', value: moneyShort(s['encaisse_mois']), color: AppColors.success),
+            MiniStat(label: tr('Reste total'), value: moneyShort(s['reste_total']), color: AppColors.danger),
+            MiniStat(label: tr('Ventes impayées'), value: qty(s['ventes_impayees']), color: AppColors.warning),
+            MiniStat(label: tr('Encaissé ce mois'), value: moneyShort(s['encaisse_mois']), color: AppColors.success),
           ]);
         },
         fetch: (page, q) => _fetch(api, page, q),
@@ -240,9 +245,9 @@ class _PassageScreenState extends State<PassageScreen> {
       ),
       trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
         Text(money(v['montant_total']), style: const TextStyle(fontWeight: FontWeight.w800)),
-        Text('Payé ${money(v['montant_paye'])}', style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
+        Text(tr('Payé {montant}', {'montant': money(v['montant_paye'])}), style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
         if (reste > 0)
-          Text('Reste ${money(reste)}', style: const TextStyle(fontSize: 11.5, color: AppColors.danger, fontWeight: FontWeight.w800)),
+          Text(tr('Reste {montant}', {'montant': money(reste)}), style: const TextStyle(fontSize: 11.5, color: AppColors.danger, fontWeight: FontWeight.w800)),
       ]),
       onTap: () async {
         if (reste > 0) {
@@ -275,7 +280,7 @@ class _PassageScreenState extends State<PassageScreen> {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(fontSize: 12.5),
       ),
-      trailing: Text('Vente n° ${e.integer('vente_id')}', style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+      trailing: Text(tr('Vente n° {id}', {'id': e.integer('vente_id')}), style: const TextStyle(fontSize: 12, color: AppColors.muted)),
       onTap: () => ctx.push(SaleDetailScreen(saleId: e.integer('vente_id'))),
     );
   }

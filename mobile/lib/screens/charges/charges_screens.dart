@@ -5,13 +5,14 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/delete_helper.dart';
 import '../../widgets/photo_field.dart';
 import '../../widgets/pickers.dart';
 
-const _mois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const _mois = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
 Color _hex(String? s, [Color fallback = AppColors.muted]) {
   final v = (s ?? '').replaceAll('#', '');
@@ -89,12 +90,12 @@ class _ChargesScreenState extends State<ChargesScreen> {
     final total = _data?.dbl('montant_total') ?? 0;
     final current = _month.year == DateTime.now().year && _month.month == DateTime.now().month;
     return Scaffold(
-      appBar: darkAppBar('Charges'),
+      appBar: darkAppBar(tr('Charges')),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'charge-new',
         onPressed: () => _open(),
         icon: const Icon(Icons.add),
-        label: const Text('Nouvelle charge'),
+        label: Text(tr('Nouvelle charge')),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -107,7 +108,7 @@ class _ChargesScreenState extends State<ChargesScreen> {
               Row(children: [
                 IconButton(onPressed: () => _shift(-1), icon: const Icon(Icons.chevron_left, color: Colors.white)),
                 Expanded(
-                  child: Text('${_mois[_month.month - 1][0].toUpperCase()}${_mois[_month.month - 1].substring(1)} ${_month.year}',
+                  child: Text('${tr(_mois[_month.month - 1])} ${_month.year}',
                       textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16)),
                 ),
                 IconButton(
@@ -116,7 +117,10 @@ class _ChargesScreenState extends State<ChargesScreen> {
                 ),
               ]),
               Text(money(total), style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900)),
-              Text('${_data?.integer('total') ?? 0} charge(s)${_categorie != null ? ' dans cette catégorie' : ''}',
+              Text(
+                  _categorie != null
+                      ? tr('{n} charge(s) dans cette catégorie', {'n': _data?.integer('total') ?? 0})
+                      : tr('{n} charge(s)', {'n': _data?.integer('total') ?? 0}),
                   style: TextStyle(color: Colors.white.withValues(alpha: 0.7))),
             ]),
           ),
@@ -127,9 +131,9 @@ class _ChargesScreenState extends State<ChargesScreen> {
               height: 40,
               child: ListView(scrollDirection: Axis.horizontal, children: [
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsetsDirectional.only(end: 8),
                   child: ChoiceChip(
-                    label: const Text('Toutes'),
+                    label: Text(tr('Toutes')),
                     selected: _categorie == null,
                     onSelected: (_) {
                       setState(() => _categorie = null);
@@ -139,7 +143,7 @@ class _ChargesScreenState extends State<ChargesScreen> {
                 ),
                 for (final c in parCat)
                   Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsetsDirectional.only(end: 8),
                     child: ChoiceChip(
                       avatar: Icon(_icon(c.strOrNull('icone')), size: 16, color: _hex(c.strOrNull('couleur'))),
                       label: Text('${c.str('nom')} · ${moneyShort(c['montant'])}'),
@@ -169,9 +173,9 @@ class _ChargesScreenState extends State<ChargesScreen> {
           if (_error != null) ErrorState(error: _error!, onRetry: _load),
           if (_data == null && _error == null) const SkeletonList(count: 5),
           if (_data != null && items.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 24),
-              child: EmptyState(icon: Icons.receipt_long_outlined, title: 'Aucune charge', message: 'Ajoutez le loyer, l’électricité, les salaires…'),
+            Padding(
+              padding: const EdgeInsets.only(top: 24),
+              child: EmptyState(icon: Icons.receipt_long_outlined, title: tr('Aucune charge'), message: tr('Ajoutez le loyer, l’électricité, les salaires…')),
             ),
           for (final ch in items) _tile(ch),
         ]),
@@ -260,7 +264,7 @@ class _ChargeFormScreenState extends State<ChargeFormScreen> {
 
   Future<void> _save() async {
     if (_categorie == null) {
-      showInfo(context, 'Choisissez la catégorie de la charge.');
+      showInfo(context, tr('Choisissez la catégorie de la charge.'));
       return;
     }
     if (!_form.currentState!.validate()) return;
@@ -283,7 +287,7 @@ class _ChargeFormScreenState extends State<ChargeFormScreen> {
         await api.delete('images/charges/${widget.charge!.integer('id')}');
       }
       if (!mounted) return;
-      showSuccess(context, edit ? 'Charge modifiée.' : 'Charge enregistrée.');
+      showSuccess(context, edit ? tr('Charge modifiée.') : tr('Charge enregistrée.'));
       Navigator.pop(context, true);
     } catch (e) {
       if (mounted) showError(context, e);
@@ -296,10 +300,10 @@ class _ChargeFormScreenState extends State<ChargeFormScreen> {
     final api = context.api;
     final done = await deleteWithFallback(
       context,
-      what: 'la charge « ${widget.charge!.str('libelle')} »',
-      confirmMessage: '« ${widget.charge!.str('libelle')} » sera supprimée.',
+      what: tr('la charge « {libelle} »', {'libelle': widget.charge!.str('libelle')}),
+      confirmMessage: tr('« {libelle} » sera supprimée.', {'libelle': widget.charge!.str('libelle')}),
       delete: () => api.delete('charges/${widget.charge!.integer('id')}'),
-      success: 'Charge supprimée.',
+      success: tr('Charge supprimée.'),
     );
     if (done && mounted) Navigator.pop(context, true);
   }
@@ -308,8 +312,8 @@ class _ChargeFormScreenState extends State<ChargeFormScreen> {
   Widget build(BuildContext context) {
     final cats = _categories;
     return Scaffold(
-      appBar: darkAppBar(widget.charge == null ? 'Nouvelle charge' : 'Modifier la charge', actions: [
-        if (widget.charge != null) IconButton(tooltip: 'Supprimer', icon: const Icon(Icons.delete_outline), onPressed: _delete),
+      appBar: darkAppBar(widget.charge == null ? tr('Nouvelle charge') : tr('Modifier la charge'), actions: [
+        if (widget.charge != null) IconButton(tooltip: tr('Supprimer'), icon: const Icon(Icons.delete_outline), onPressed: _delete),
       ]),
       body: Form(
         key: _form,
@@ -319,13 +323,13 @@ class _ChargeFormScreenState extends State<ChargeFormScreen> {
             autofocus: widget.charge == null,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
-            decoration: const InputDecoration(labelText: 'Montant *', suffixText: 'DH', prefixIcon: Icon(Icons.payments_outlined)),
+            decoration: InputDecoration(labelText: tr('Montant *'), suffixText: tr('DH'), prefixIcon: const Icon(Icons.payments_outlined)),
             validator: (v) {
               final n = parseInput(v ?? '');
-              return n == null || n <= 0 ? 'Indiquez le montant.' : null;
+              return n == null || n <= 0 ? tr('Indiquez le montant.') : null;
             },
           ),
-          const GroupLabel('Catégorie'),
+          GroupLabel(tr('Catégorie')),
           if (cats == null)
             const LinearProgressIndicator()
           else
@@ -344,28 +348,28 @@ class _ChargeFormScreenState extends State<ChargeFormScreen> {
                   }),
                 ),
             ]),
-          const GroupLabel('Détails'),
+          GroupLabel(tr('Détails')),
           TextFormField(
             controller: _libelle,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Libellé *', hintText: 'ex. Facture électricité septembre'),
-            validator: (v) => (v == null || v.trim().isEmpty) ? 'Indiquez le libellé.' : null,
+            decoration: InputDecoration(labelText: tr('Libellé *'), hintText: tr('ex. Facture électricité septembre')),
+            validator: (v) => (v == null || v.trim().isEmpty) ? tr('Indiquez le libellé.') : null,
           ),
           const SizedBox(height: 12),
-          DateField(label: 'Date', value: _date, onChanged: (v) => setState(() => _date = v ?? _date)),
+          DateField(label: tr('Date'), value: _date, onChanged: (v) => setState(() => _date = v ?? _date)),
           const SizedBox(height: 12),
           PaymentModePicker(value: _mode, onChanged: (v) => setState(() => _mode = v)),
           const SizedBox(height: 12),
           TextFormField(
             controller: _benef,
             textCapitalization: TextCapitalization.words,
-            decoration: const InputDecoration(labelText: 'Bénéficiaire', hintText: 'ex. Lydec, propriétaire, salarié…'),
+            decoration: InputDecoration(labelText: tr('Bénéficiaire'), hintText: tr('ex. Lydec, propriétaire, salarié…')),
           ),
           const SizedBox(height: 12),
-          TextFormField(controller: _ref, decoration: const InputDecoration(labelText: 'Référence (n° facture, chèque…)')),
+          TextFormField(controller: _ref, decoration: InputDecoration(labelText: tr('Référence (n° facture, chèque…)'))),
           const SizedBox(height: 12),
-          TextFormField(controller: _note, maxLines: 2, decoration: const InputDecoration(labelText: 'Note')),
-          const GroupLabel('Justificatif'),
+          TextFormField(controller: _note, maxLines: 2, decoration: InputDecoration(labelText: tr('Note'))),
+          GroupLabel(tr('Justificatif')),
           Center(
             child: PhotoField(
               file: _piece,
@@ -376,14 +380,14 @@ class _ChargeFormScreenState extends State<ChargeFormScreen> {
             ),
           ),
           if (_removePiece && _piece == null)
-            const Padding(
-              padding: EdgeInsets.only(top: 6),
-              child: Text('Le justificatif sera supprimé à l’enregistrement.',
-                  textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(tr('Le justificatif sera supprimé à l’enregistrement.'),
+                  textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
             ),
         ]),
       ),
-      bottomNavigationBar: BottomAction(label: 'Enregistrer', busy: _saving, onPressed: _save),
+      bottomNavigationBar: BottomAction(label: tr('Enregistrer'), busy: _saving, onPressed: _save),
     );
   }
 }

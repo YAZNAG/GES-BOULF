@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
@@ -42,30 +43,30 @@ class _PurchasePricesScreenState extends State<PurchasePricesScreen> {
     final v = await showDialog<double>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Prix d’achat'),
+        title: Text(tr('Prix d’achat')),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           ProductHeader(article: a, size: 64),
           const SizedBox(height: 12),
-          if (a.prixVente > 0) Text('Prix de vente : ${money(a.prixVente)}', style: const TextStyle(color: AppColors.muted)),
+          if (a.prixVente > 0) Text(tr('Prix de vente : {prix}', {'prix': money(a.prixVente)}), style: const TextStyle(color: AppColors.muted)),
           const SizedBox(height: 12),
           TextField(
             controller: ctrl,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-            decoration: const InputDecoration(labelText: 'Prix d’achat', suffixText: 'DH'),
+            decoration: InputDecoration(labelText: tr('Prix d’achat'), suffixText: tr('DH')),
             onSubmitted: (t) => Navigator.pop(c, parseInput(t)),
           ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annuler')),
-          FilledButton(onPressed: () => Navigator.pop(c, parseInput(ctrl.text)), child: const Text('Enregistrer')),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+          FilledButton(onPressed: () => Navigator.pop(c, parseInput(ctrl.text)), child: Text(tr('Enregistrer'))),
         ],
       ),
     );
     ctrl.dispose();
     if (v == null || v < 0 || !mounted) return false;
-    final res = await runBusy(context, () => context.api.put('tarifs/${a.integer('id')}', {'prix_achat': v}), success: 'Prix d’achat enregistré.');
+    final res = await runBusy(context, () => context.api.put('tarifs/${a.integer('id')}', {'prix_achat': v}), success: tr('Prix d’achat enregistré.'));
     return res != null;
   }
 
@@ -73,28 +74,28 @@ class _PurchasePricesScreenState extends State<PurchasePricesScreen> {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
-      appBar: darkAppBar('Prix d’achat', actions: [
+      appBar: darkAppBar(tr('Prix d’achat'), actions: [
         PopupMenuButton<String>(
-          tooltip: 'Trier',
+          tooltip: tr('Trier'),
           icon: const Icon(Icons.sort),
           initialValue: _sort,
           onSelected: (v) {
             setState(() => _sort = v);
             _list.currentState?.reload();
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'nom', child: Text('Nom (A → Z)')),
-            PopupMenuItem(value: 'achat_desc', child: Text('Prix d’achat décroissant')),
-            PopupMenuItem(value: 'achat_asc', child: Text('Prix d’achat croissant')),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'nom', child: Text(tr('Nom (A → Z)'))),
+            PopupMenuItem(value: 'achat_desc', child: Text(tr('Prix d’achat décroissant'))),
+            PopupMenuItem(value: 'achat_asc', child: Text(tr('Prix d’achat croissant'))),
           ],
         ),
       ]),
       body: PagedList<Json>(
         key: _list,
-        searchHint: 'Code-barres, nom FR ou عربي',
+        searchHint: tr('Code-barres, nom FR ou عربي'),
         onScan: _scan,
         emptyIcon: Icons.shopping_bag_outlined,
-        emptyTitle: 'Aucun article',
+        emptyTitle: tr('Aucun article'),
         filters: FilterChips<String>(
           leading: [
             CategoryFilterChip(
@@ -105,7 +106,7 @@ class _PurchasePricesScreenState extends State<PurchasePricesScreen> {
               },
             ),
           ],
-          options: const [(null, 'Tous'), ('sans_achat', 'Sans prix d’achat')],
+          options: [(null, tr('Tous')), ('sans_achat', tr('Sans prix d’achat'))],
           value: _statut,
           onChanged: (s) {
             setState(() => _statut = s);
@@ -139,13 +140,19 @@ class _PurchasePricesScreenState extends State<PurchasePricesScreen> {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(a.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-              if (ar != null) Align(alignment: Alignment.centerLeft, child: ArabicText(ar, maxLines: 1)),
+              if (ar != null)
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: appLang.isAr
+                      ? Text(ar, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.muted, fontSize: 13))
+                      : ArabicText(ar, maxLines: 1),
+                ),
               Text(a.barcode, style: const TextStyle(color: AppColors.muted, fontSize: 11.5, fontFamily: 'monospace')),
               if (dernier != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: Text(
-                    'Dernier achat ${date(dernier)}'
+                    '${tr('Dernier achat {date}', {'date': date(dernier)})}'
                     '${a.strOrNull('dernier_achat_fournisseur') != null ? ' · ${a.str('dernier_achat_fournisseur')}' : ''}'
                     ' · ${money(a['dernier_achat_prix'])}',
                     maxLines: 1,
@@ -157,10 +164,10 @@ class _PurchasePricesScreenState extends State<PurchasePricesScreen> {
           ),
           const SizedBox(width: 8),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text(achat > 0 ? money(achat) : 'À saisir',
+            Text(achat > 0 ? money(achat) : tr('À saisir'),
                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: achat > 0 ? AppColors.ink : AppColors.warning)),
             if (a.prixVente > 0)
-              Text('vente ${money(a.prixVente)}', style: const TextStyle(color: AppColors.muted, fontSize: 11.5)),
+              Text(tr('vente {prix}', {'prix': money(a.prixVente)}), style: const TextStyle(color: AppColors.muted, fontSize: 11.5)),
           ]),
         ]),
       ),

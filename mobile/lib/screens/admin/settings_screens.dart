@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
 import '../../core/article.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/delete_helper.dart';
@@ -20,6 +21,15 @@ class RefConfig {
     this.hasActive = false,
     this.nameMax = 100,
     this.imageType,
+    required this.searchHint,
+    required this.emptyTitle,
+    required this.newTitle,
+    required this.editTitle,
+    required this.what,
+    required this.deleted,
+    required this.deactivatedMsg,
+    required this.inactiveBadge,
+    required this.activeLabel,
   });
 
   final String title;
@@ -32,9 +42,52 @@ class RefConfig {
   /// Type pour `images/{type}/{id}` (photo modifiable), ou null.
   final String? imageType;
 
-  static const unites = RefConfig(title: 'Unités', singular: 'unité', path: 'unites', icon: Icons.straighten, hasActive: true, nameMax: 20);
-  static const marques =
-      RefConfig(title: 'Marques', singular: 'marque', path: 'marques', icon: Icons.verified_outlined, imageType: 'marques');
+  // Libellés (en français, affichés via tr()).
+  final String searchHint;
+  final String emptyTitle;
+  final String newTitle;
+  final String editTitle;
+
+  /// Désignation pour la suppression, avec le placeholder {nom}.
+  final String what;
+  final String deleted;
+  final String deactivatedMsg;
+  final String inactiveBadge;
+  final String activeLabel;
+
+  static const unites = RefConfig(
+    title: 'Unités',
+    singular: 'unité',
+    path: 'unites',
+    icon: Icons.straighten,
+    hasActive: true,
+    nameMax: 20,
+    searchHint: 'Rechercher une unité…',
+    emptyTitle: 'Aucune unité',
+    newTitle: 'Nouvelle unité',
+    editTitle: 'Modifier l’unité',
+    what: 'l’unité « {nom} »',
+    deleted: 'Unité supprimée.',
+    deactivatedMsg: 'Unité désactivée.',
+    inactiveBadge: 'Inactive',
+    activeLabel: 'Active',
+  );
+  static const marques = RefConfig(
+    title: 'Marques',
+    singular: 'marque',
+    path: 'marques',
+    icon: Icons.verified_outlined,
+    imageType: 'marques',
+    searchHint: 'Rechercher une marque…',
+    emptyTitle: 'Aucune marque',
+    newTitle: 'Nouvelle marque',
+    editTitle: 'Modifier la marque',
+    what: 'la marque « {nom} »',
+    deleted: 'Marque supprimée.',
+    deactivatedMsg: 'Marque désactivée.',
+    inactiveBadge: 'Inactive',
+    activeLabel: 'Active',
+  );
 }
 
 /// Liste CRUD d'une table de référence.
@@ -72,12 +125,12 @@ class _RefListScreenState extends State<RefListScreen> {
     final id = item.integer('id');
     final done = await deleteWithFallback(
       context,
-      what: 'la ${c.singular} « ${item.str('nom')} »',
+      what: tr(c.what, {'nom': item.str('nom')}),
       delete: () => api.delete('${c.path}/$id'),
       // Unités : on peut les désactiver si elles sont utilisées par des produits.
       deactivate: c.hasActive && item.flag('actif', true) ? () => api.put('${c.path}/$id', {'actif': false}) : null,
-      success: '${c.singular[0].toUpperCase()}${c.singular.substring(1)} supprimée.',
-      deactivated: '${c.singular[0].toUpperCase()}${c.singular.substring(1)} désactivée.',
+      success: tr(c.deleted),
+      deactivated: tr(c.deactivatedMsg),
     );
     if (done) _refresh();
   }
@@ -86,18 +139,18 @@ class _RefListScreenState extends State<RefListScreen> {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
-      appBar: darkAppBar(c.title),
+      appBar: darkAppBar(tr(c.title)),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'ref-add-${c.path}',
         onPressed: () => _edit(),
         icon: const Icon(Icons.add),
-        label: Text('Ajouter'),
+        label: Text(tr('Ajouter')),
       ),
       body: PagedList<Json>(
         key: _list,
-        searchHint: 'Rechercher une ${c.singular}…',
+        searchHint: tr(c.searchHint),
         emptyIcon: c.icon,
-        emptyTitle: 'Aucune ${c.singular}',
+        emptyTitle: tr(c.emptyTitle),
         // L'API ne filtre pas ces tables : on charge tout puis on filtre localement.
         fetch: (page, q) async {
           final all = _cache ??= (await api.page(c.path, (j) => j, perPage: 1000)).items
@@ -115,16 +168,16 @@ class _RefListScreenState extends State<RefListScreen> {
             title: Text(it.str('nom'), style: const TextStyle(fontWeight: FontWeight.w700)),
             subtitle: it.strOrNull('description') == null ? null : Text(it.str('description'), maxLines: 2, overflow: TextOverflow.ellipsis),
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (c.hasActive && !actif) const Badge2('Inactive'),
+              if (c.hasActive && !actif) Badge2(tr(c.inactiveBadge)),
               PopupMenuButton<String>(
                 onSelected: (v) => v == 'edit' ? _edit(it) : _delete(it),
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Modifier'))),
+                itemBuilder: (_) => [
+                  PopupMenuItem(value: 'edit', child: ListTile(leading: const Icon(Icons.edit_outlined), title: Text(tr('Modifier')))),
                   PopupMenuItem(
                     value: 'delete',
                     child: ListTile(
-                      leading: Icon(Icons.delete_outline, color: AppColors.danger),
-                      title: Text('Supprimer', style: TextStyle(color: AppColors.danger)),
+                      leading: const Icon(Icons.delete_outline, color: AppColors.danger),
+                      title: Text(tr('Supprimer'), style: const TextStyle(color: AppColors.danger)),
                     ),
                   ),
                 ],
@@ -168,7 +221,7 @@ class _RefSheetState extends State<_RefSheet> {
 
   Future<void> _save() async {
     if (_nom.text.trim().isEmpty) {
-      setState(() => _errors = {'nom': ['Le nom est obligatoire.']});
+      setState(() => _errors = {'nom': [tr('Le nom est obligatoire.')]});
       return;
     }
     setState(() {
@@ -195,7 +248,7 @@ class _RefSheetState extends State<_RefSheet> {
         }
       }
       if (!mounted) return;
-      showSuccess(context, 'Enregistré.');
+      showSuccess(context, tr('Enregistré.'));
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -215,7 +268,7 @@ class _RefSheetState extends State<_RefSheet> {
       padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 20),
       child: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-          Text(widget.item == null ? 'Nouvelle ${c.singular}' : 'Modifier la ${c.singular}',
+          Text(widget.item == null ? tr(c.newTitle) : tr(c.editTitle),
               style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
           const SizedBox(height: 16),
           if (c.imageType != null) ...[
@@ -229,10 +282,10 @@ class _RefSheetState extends State<_RefSheet> {
               ),
             ),
             if (_removePhoto && _photo == null)
-              const Padding(
-                padding: EdgeInsets.only(top: 4),
-                child: Text('La photo sera supprimée à l’enregistrement.',
-                    textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(tr('La photo sera supprimée à l’enregistrement.'),
+                    textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
               ),
             const SizedBox(height: 12),
           ],
@@ -240,18 +293,18 @@ class _RefSheetState extends State<_RefSheet> {
             controller: _nom,
             autofocus: widget.item == null,
             maxLength: c.nameMax,
-            decoration: InputDecoration(labelText: 'Nom *', errorText: _errors['nom']?.first),
+            decoration: InputDecoration(labelText: tr('Nom *'), errorText: _errors['nom']?.first),
           ),
           const SizedBox(height: 4),
           TextField(
             controller: _desc,
             maxLines: 2,
-            decoration: InputDecoration(labelText: 'Description', errorText: _errors['description']?.first),
+            decoration: InputDecoration(labelText: tr('Description'), errorText: _errors['description']?.first),
           ),
           if (c.hasActive)
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Active'),
+              title: Text(tr(c.activeLabel)),
               value: _actif,
               activeThumbColor: AppColors.primary,
               onChanged: (v) => setState(() => _actif = v),
@@ -262,7 +315,7 @@ class _RefSheetState extends State<_RefSheet> {
             icon: _busy
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.check),
-            label: const Text('Enregistrer'),
+            label: Text(tr('Enregistrer')),
           ),
         ]),
       ),

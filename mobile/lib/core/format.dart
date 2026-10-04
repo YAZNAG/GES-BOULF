@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import 'i18n.dart';
+
 final _amount = NumberFormat('#,##0.00', 'fr_FR');
 final _number = NumberFormat('#,##0', 'fr_FR');
 final _decimal = NumberFormat('#,##0.###', 'fr_FR');
@@ -15,13 +17,13 @@ double toNum(Object? v) =>
 String _clean(String s) => s.replaceAll(' ', ' ').replaceAll(' ', ' ');
 
 /// « 1 234,50 DH »
-String money(Object? v) => '${_clean(_amount.format(toNum(v)))} DH';
+String money(Object? v) => '${_clean(_amount.format(toNum(v)))} ${tr('DH')}';
 
 /// Montant compact sans décimales si entier : « 1 234 DH ».
 String moneyShort(Object? v) {
   final n = toNum(v);
-  if (n.abs() >= 1000000) return '${_clean(NumberFormat('#,##0.0', 'fr_FR').format(n / 1000000))} M DH';
-  if (n == n.roundToDouble()) return '${_clean(_number.format(n))} DH';
+  if (n.abs() >= 1000000) return '${_clean(NumberFormat('#,##0.0', 'fr_FR').format(n / 1000000))} ${tr('M DH')}';
+  if (n == n.roundToDouble()) return '${_clean(_number.format(n))} ${tr('DH')}';
   return money(n);
 }
 

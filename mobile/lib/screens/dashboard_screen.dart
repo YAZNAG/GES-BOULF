@@ -1,8 +1,11 @@
 import 'charges/charges_screens.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../core/api.dart';
+import '../core/article.dart';
 import '../core/format.dart';
+import '../core/i18n.dart';
 import '../core/theme.dart';
 import '../widgets/bar_chart.dart';
 import '../widgets/common.dart';
@@ -30,11 +33,11 @@ class DashboardScreen extends StatelessWidget {
 
   String _greeting() {
     final h = DateTime.now().hour;
-    return h < 12 ? 'Bonjour' : (h < 18 ? 'Bon après-midi' : 'Bonsoir');
+    return h < 12 ? tr('Bonjour') : (h < 18 ? tr('Bon après-midi') : tr('Bonsoir'));
   }
 
   Future<void> _scanProduct(BuildContext context) async {
-    final code = await ScannerPage.scan(context, title: 'Rechercher un article');
+    final code = await ScannerPage.scan(context, title: tr('Rechercher un article'));
     if (code == null || !context.mounted) return;
     final api = context.api;
     var a = await runBusy<Json?>(context, () => lookupArticle(api, code));
@@ -90,7 +93,7 @@ class DashboardScreen extends StatelessWidget {
                       ),
                     ]),
                     const SizedBox(height: 18),
-                    Text('${_greeting()}, ${s.firstName.isNotEmpty ? s.firstName : s.lastName}',
+                    Text(tr('{salut}, {nom}', {'salut': _greeting(), 'nom': s.firstName.isNotEmpty ? s.firstName : s.lastName}),
                         style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 2),
                     Text(s.roleLabel, style: const TextStyle(color: Colors.white60)),
@@ -110,28 +113,28 @@ class DashboardScreen extends StatelessWidget {
                           ),
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Row(children: [
-                              const Text('Ventes du jour', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
+                              Text(tr('Ventes du jour'), style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
                               const Spacer(),
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(20)),
-                                child: Text('${jour.integer('ventes')} vente${jour.integer('ventes') > 1 ? 's' : ''}',
+                                child: Text(_ventes(jour.integer('ventes')),
                                     style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                               ),
                             ]),
                             const SizedBox(height: 6),
                             FittedBox(
                               fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
+                              alignment: AlignmentDirectional.centerStart,
                               child: Text(money(jour['montant']),
                                   style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.w900, letterSpacing: -0.5)),
                             ),
                             const SizedBox(height: 10),
                             Row(children: [
-                              _HeaderFigure(label: 'Encaissé', value: money(jour['encaisse']), color: const Color(0xFF86EFAC)),
+                              _HeaderFigure(label: tr('Encaissé'), value: money(jour['encaisse']), color: const Color(0xFF86EFAC)),
                               const SizedBox(width: 16),
                               _HeaderFigure(
-                                label: 'À crédit',
+                                label: tr('À crédit'),
                                 value: money(reste > 0 ? reste : 0),
                                 color: reste > 0 ? const Color(0xFFFCA5A5) : Colors.white70,
                               ),
@@ -150,30 +153,30 @@ class DashboardScreen extends StatelessWidget {
                   Row(children: [
                     _QuickAction(
                       icon: Icons.point_of_sale,
-                      label: 'Nouvelle\nvente',
+                      label: tr('Nouvelle\nvente'),
                       color: AppColors.primary,
                       onTap: () => onOpenTab(HomeTab.caisse),
                     ),
                     _QuickAction(
                       icon: Icons.qr_code_scanner,
-                      label: 'Scanner\nun article',
+                      label: tr('Scanner\nun article'),
                       color: AppColors.ink,
                       onTap: () => _scanProduct(context),
                     ),
                     _QuickAction(
                       icon: Icons.move_to_inbox_outlined,
-                      label: 'Bon de\nréception',
+                      label: tr('Bon de\nréception'),
                       color: AppColors.success,
                       onTap: () => context.push(const ReceiptForm()),
                     ),
                     _QuickAction(
                       icon: Icons.receipt_long_outlined,
-                      label: 'Bon de\ncommande',
+                      label: tr('Bon de\ncommande'),
                       color: AppColors.info,
                       onTap: () => context.push(const OrderForm()),
                     ),
                   ]),
-                  const GroupLabel('Indicateurs'),
+                  GroupLabel(tr('Indicateurs')),
                   GridView.count(
                     crossAxisCount: 2,
                     shrinkWrap: true,
@@ -184,60 +187,60 @@ class DashboardScreen extends StatelessWidget {
                     childAspectRatio: 1.45,
                     children: [
                       StatTile(
-                        label: 'Ventes du mois',
+                        label: tr('Ventes du mois'),
                         value: moneyShort(mois['montant']),
-                        hint: '${mois.integer('ventes')} vente${mois.integer('ventes') > 1 ? 's' : ''}',
+                        hint: _ventes(mois.integer('ventes')),
                         icon: Icons.trending_up,
                         color: AppColors.success,
                         onTap: () => context.push(const SalesScreen(initialPeriod: SalesPeriod.month)),
                       ),
                       StatTile(
-                        label: 'Crédit clients',
+                        label: tr('Crédit clients'),
                         value: moneyShort(d['credit_clients']),
                         icon: Icons.people_alt_outlined,
                         color: AppColors.violet,
                         onTap: () => context.push(const ClientsScreen(creditOnly: true)),
                       ),
                       StatTile(
-                        label: 'Crédit fournisseurs',
+                        label: tr('Crédit fournisseurs'),
                         value: moneyShort(d['credit_fournisseurs']),
                         icon: Icons.local_shipping_outlined,
                         color: AppColors.info,
                         onTap: () => context.push(const SuppliersScreen(creditOnly: true)),
                       ),
                       StatTile(
-                        label: 'Charges du mois',
+                        label: tr('Charges du mois'),
                         value: moneyShort(d['charges_mois']),
                         icon: Icons.receipt_long_outlined,
                         color: AppColors.danger,
                         onTap: () => context.push(const ChargesScreen()),
                       ),
                       StatTile(
-                        label: 'Ventes − charges',
+                        label: tr('Ventes − charges'),
                         value: moneyShort(mois.dbl('montant') - d.dbl('charges_mois')),
-                        hint: 'ce mois',
+                        hint: tr('ce mois'),
                         icon: Icons.account_balance_wallet_outlined,
                         color: mois.dbl('montant') - d.dbl('charges_mois') >= 0 ? AppColors.teal : AppColors.danger,
                         onTap: () => context.push(const ChargesScreen()),
                       ),
                       StatTile(
-                        label: 'À tarifer',
+                        label: tr('À tarifer'),
                         value: qty(produits['a_tarifer']),
-                        hint: '${qty(produits['actifs'])} actifs / ${qty(produits['total'])}',
+                        hint: tr('{actifs} actifs / {total}', {'actifs': qty(produits['actifs']), 'total': qty(produits['total'])}),
                         icon: Icons.sell_outlined,
                         color: AppColors.warning,
                         onTap: () => context.push(const TarifsScreen(initialStatut: 'a_tarifer')),
                       ),
                     ],
                   ),
-                  const GroupLabel('Alertes stock'),
+                  GroupLabel(tr('Alertes stock')),
                   Row(children: [
                     Expanded(
                       child: _AlertCard(
                         icon: Icons.remove_shopping_cart_outlined,
                         color: AppColors.danger,
                         value: qty(stock['rupture']),
-                        label: 'En rupture',
+                        label: tr('En rupture'),
                         onTap: () => context.push(const StockScreen(initialStatut: 'rupture')),
                       ),
                     ),
@@ -247,16 +250,16 @@ class DashboardScreen extends StatelessWidget {
                         icon: Icons.warning_amber_rounded,
                         color: AppColors.warning,
                         value: qty(stock['sous_seuil']),
-                        label: 'Sous le seuil',
+                        label: tr('Sous le seuil'),
                         onTap: () => context.push(const StockScreen(initialStatut: 'sous_seuil')),
                       ),
                     ),
                   ]),
                   if (sept.isNotEmpty) ...[
-                    const GroupLabel('7 derniers jours'),
+                    GroupLabel(tr('7 derniers jours')),
                     SectionCard(
                       title: moneyShort(weekTotal),
-                      trailing: const Badge2('Chiffre d’affaires', color: AppColors.primary),
+                      trailing: Badge2(tr('Chiffre d’affaires'), color: AppColors.primary),
                       children: [
                         BarChart(
                           values: [for (final e in sept) e.dbl('montant')],
@@ -266,7 +269,7 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ],
                   if (top.isNotEmpty) ...[
-                    const GroupLabel('Top 5 du mois'),
+                    GroupLabel(tr('Top 5 du mois')),
                     Card(
                       clipBehavior: Clip.antiAlias,
                       child: Column(children: [
@@ -274,9 +277,9 @@ class DashboardScreen extends StatelessWidget {
                           if (i > 0) const Divider(height: 1, indent: 72),
                           ListTile(
                             leading: Stack(clipBehavior: Clip.none, children: [
-                              ItemThumb(path: p['image'], label: p.str('nom'), size: 44),
-                              Positioned(
-                                left: -6,
+                              ItemThumb(path: p['image'], label: p.articleName, size: 44),
+                              PositionedDirectional(
+                                start: -6,
                                 top: -6,
                                 child: CircleAvatar(
                                   radius: 10,
@@ -286,9 +289,9 @@ class DashboardScreen extends StatelessWidget {
                                 ),
                               ),
                             ]),
-                            title: Text(p.str('nom'), maxLines: 1, overflow: TextOverflow.ellipsis,
+                            title: Text(p.articleName, maxLines: 1, overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(fontWeight: FontWeight.w700)),
-                            subtitle: Text('${qty(p['qte'])} vendus'),
+                            subtitle: Text(tr('{qte} vendus', {'qte': qty(p['qte'])})),
                             trailing: Text(moneyShort(p['montant']), style: const TextStyle(fontWeight: FontWeight.w800)),
                             onTap: p.intOrNull('id') == null
                                 ? null
@@ -299,20 +302,20 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ],
                   GroupLabel(
-                    'Dernières ventes',
+                    tr('Dernières ventes'),
                     trailing: TextButton(
                       onPressed: () => context.push(const SalesScreen()),
-                      child: const Text('Tout voir'),
+                      child: Text(tr('Tout voir')),
                     ),
                   ),
                   if (last.isEmpty)
-                    const Card(
+                    Card(
                       child: Padding(
-                        padding: EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(20),
                         child: Row(children: [
-                          Icon(Icons.receipt_outlined, color: AppColors.muted),
-                          SizedBox(width: 12),
-                          Expanded(child: Text('Aucune vente pour le moment.', style: TextStyle(color: AppColors.muted))),
+                          const Icon(Icons.receipt_outlined, color: AppColors.muted),
+                          const SizedBox(width: 12),
+                          Expanded(child: Text(tr('Aucune vente pour le moment.'), style: const TextStyle(color: AppColors.muted))),
                         ]),
                       ),
                     )
@@ -335,7 +338,13 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
+  static String _ventes(int n) => n > 1 ? tr('{n} ventes', {'n': n}) : tr('{n} vente', {'n': n});
+
   static String _dayLabel(Json e) {
+    if (appLang.isAr) {
+      final d = parseDate(e['date']);
+      if (d != null) return DateFormat('EEE', appLang.dateLocale).format(d);
+    }
     final j = e.str('jour');
     if (j.isNotEmpty) return j[0].toUpperCase() + j.substring(1);
     final d = parseDate(e['date']);
@@ -423,7 +432,7 @@ class _AlertCard extends StatelessWidget {
         onTap: onTap,
         child: Container(
           padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(border: Border(left: BorderSide(color: color, width: 4))),
+          decoration: BoxDecoration(border: BorderDirectional(start: BorderSide(color: color, width: 4))),
           child: Row(children: [
             Icon(icon, color: color),
             const SizedBox(width: 10),

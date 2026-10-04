@@ -1,13 +1,48 @@
 import 'api.dart';
+import 'i18n.dart';
+
+/// Nom français d'une famille / catégorie / sous-catégorie (`nom_fr`, `name_fr` ou `nom`).
+String? catNameFr(Json? j) => j == null ? null : j.strOrNull('nom_fr') ?? j.strOrNull('name_fr') ?? j.strOrNull('nom');
+
+/// Nom arabe d'une famille / catégorie / sous-catégorie (`nom_ar` ou `name_ar`).
+String? catNameAr(Json? j) => j == null ? null : j.strOrNull('nom_ar') ?? j.strOrNull('name_ar');
+
+/// Nom affiché d'une famille / catégorie / sous-catégorie dans la langue courante
+/// (arabe si actif et renseigné, sinon français).
+String catName(Json? j, [String fallback = '—']) {
+  final fr = catNameFr(j);
+  final ar = catNameAr(j);
+  return (appLang.isAr ? ar ?? fr : fr ?? ar) ?? fallback;
+}
+
+/// Ligne secondaire sous le nom : l'arabe en français, le français en arabe (null si identique/absent).
+String? catSecondary(Json? j) {
+  final fr = catNameFr(j);
+  final ar = catNameAr(j);
+  final s = appLang.isAr ? (ar == null ? null : fr) : ar;
+  return s == catName(j) ? null : s;
+}
 
 /// Lecture d'un article de l'API (forme `articles`, `lookup`, `tarifs` ou `stock.article`).
 extension ArticleRead on Json {
+  /// Nom français (name_fr, sinon nom).
+  String get articleNameFr => strOrNull('name_fr') ?? str('nom', tr('Article'));
+
+  /// Nom affiché dans la langue courante (arabe si actif et renseigné).
   String get articleName {
-    final fr = strOrNull('name_fr');
-    return fr ?? str('nom', 'Article');
+    if (appLang.isAr) {
+      final ar = strOrNull('name_ar');
+      if (ar != null) return ar;
+    }
+    return articleNameFr;
   }
 
-  String? get articleNameAr => strOrNull('name_ar');
+  /// Ligne secondaire sous le nom : l'arabe en français, le français en arabe (null si absent).
+  String? get articleNameAr {
+    final ar = strOrNull('name_ar');
+    if (!appLang.isAr) return ar;
+    return ar == null ? null : articleNameFr;
+  }
   String get barcode => str('code_article');
   String get unit => str('unite');
 
@@ -47,29 +82,34 @@ extension ArticleRead on Json {
   String? get categoryName {
     final sc = obj('sous_categorie');
     final c = sc?.obj('categorie');
-    return c?.strOrNull('name_fr') ?? c?.strOrNull('nom') ?? sc?.strOrNull('name_fr') ?? sc?.strOrNull('nom');
+    final n = catNameFr(c) ?? catNameAr(c);
+    return n != null ? catName(c) : (catNameFr(sc) ?? catNameAr(sc)) != null ? catName(sc) : null;
   }
 
   String? get subCategoryName {
     final sc = obj('sous_categorie');
-    return sc?.strOrNull('name_fr') ?? sc?.strOrNull('nom');
+    return (catNameFr(sc) ?? catNameAr(sc)) != null ? catName(sc) : null;
   }
 
-  String? get familyName => obj('sous_categorie')?.obj('categorie')?.obj('famille')?.strOrNull('nom_fr');
+  String? get familyName {
+    final f = obj('sous_categorie')?.obj('categorie')?.obj('famille');
+    return (catNameFr(f) ?? catNameAr(f)) != null ? catName(f) : null;
+  }
 }
 
 /// Nom d'un mode de paiement.
 String paymentModeLabel(String? mode) => switch ((mode ?? '').toLowerCase()) {
-      'especes' || 'espece' || 'espèces' || 'cash' => 'Espèces',
-      'carte' || 'card' || 'tpe' => 'Carte',
-      'cheque' || 'chèque' => 'Chèque',
-      'virement' => 'Virement',
-      'effet' => 'Effet',
-      'credit' || 'crédit' => 'Crédit',
+      'especes' || 'espece' || 'espèces' || 'cash' => tr('Espèces'),
+      'carte' || 'card' || 'tpe' => tr('Carte'),
+      'cheque' || 'chèque' => tr('Chèque'),
+      'virement' => tr('Virement'),
+      'effet' => tr('Effet'),
+      'credit' || 'crédit' => tr('Crédit'),
       '' => '—',
       _ => mode!,
     };
 
+/// Modes de paiement (code, libellé français — afficher avec `tr(libellé)`).
 const paymentModes = [
   ('especes', 'Espèces'),
   ('carte', 'Carte'),

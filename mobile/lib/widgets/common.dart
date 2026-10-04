@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/i18n.dart';
 import '../core/session.dart';
 import '../core/theme.dart';
 
@@ -19,7 +20,7 @@ extension SessionContext on BuildContext {
   Future<T?> push<T>(Widget page) => Navigator.of(this).push<T>(MaterialPageRoute(builder: (_) => page));
 }
 
-String errorMessage(Object error) => error is ApiException ? error.details : 'Une erreur est survenue.';
+String errorMessage(Object error) => error is ApiException ? error.details : tr('Une erreur est survenue.');
 
 void showError(BuildContext context, Object error) {
   ScaffoldMessenger.of(context)
@@ -55,21 +56,21 @@ void showInfo(BuildContext context, String message, {Color color = AppColors.ink
 }
 
 Future<bool> confirm(BuildContext context, String title, String message,
-    {String ok = 'Confirmer', bool danger = false}) async {
+    {String? ok, bool danger = false}) async {
   final res = await showDialog<bool>(
     context: context,
     builder: (c) => AlertDialog(
       title: Text(title),
       content: Text(message),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
         FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: danger ? AppColors.danger : AppColors.primary,
             minimumSize: const Size(64, 42),
           ),
           onPressed: () => Navigator.pop(c, true),
-          child: Text(ok),
+          child: Text(ok ?? tr('Confirmer')),
         ),
       ],
     ),
@@ -151,15 +152,15 @@ Color orderStatusColor(String s) => switch (s) {
     };
 
 String orderStatusLabel(String s) => switch (s) {
-      'brouillon' => 'Brouillon',
-      'confirmee' => 'Confirmée',
-      'partielle' => 'Partielle',
-      'recue' => 'Reçue',
-      'annulee' => 'Annulée',
+      'brouillon' => tr('Brouillon'),
+      'confirmee' => tr('Confirmée'),
+      'partielle' => tr('Partielle'),
+      'recue' => tr('Reçue'),
+      'annulee' => tr('Annulée'),
       _ => s,
     };
 
-/// Texte arabe affiché de droite à gauche.
+/// Texte arabe affiché de droite à gauche (dans les deux langues de l'interface).
 class ArabicText extends StatelessWidget {
   const ArabicText(this.text, {super.key, this.style, this.maxLines, this.textAlign});
 
@@ -223,12 +224,12 @@ class ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final msg = error is ApiException ? (error as ApiException).message : 'Une erreur est survenue.';
+    final msg = error is ApiException ? (error as ApiException).message : tr('Une erreur est survenue.');
     return EmptyState(
       icon: Icons.cloud_off_rounded,
-      title: 'Chargement impossible',
+      title: tr('Chargement impossible'),
       message: msg,
-      action: OutlinedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Réessayer')),
+      action: OutlinedButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: Text(tr('Réessayer'))),
     );
   }
 }
@@ -344,7 +345,7 @@ class AsyncViewState<T> extends State<AsyncView<T>> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return widget.skeleton ?? const Center(child: CircularProgressIndicator());
-    if (_data == null) return ErrorState(error: _error ?? 'Erreur', onRetry: reload);
+    if (_data == null) return ErrorState(error: _error ?? tr('Erreur'), onRetry: reload);
     return widget.builder(context, _data as T, reload);
   }
 }
@@ -404,7 +405,7 @@ class InfoRow extends StatelessWidget {
           flex: 3,
           child: valueWidget ??
               Text(value.isEmpty ? '—' : value,
-                  textAlign: TextAlign.right, style: valueStyle ?? const TextStyle(fontWeight: FontWeight.w600)),
+                  textAlign: TextAlign.end, style: valueStyle ?? const TextStyle(fontWeight: FontWeight.w600)),
         ),
       ]),
     );
@@ -451,7 +452,7 @@ class StatTile extends StatelessWidget {
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               FittedBox(
                 fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
               ),
               const SizedBox(height: 2),
@@ -493,7 +494,7 @@ class MiniStat extends StatelessWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
             FittedBox(
               fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: color)),
             ),
             Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
@@ -538,7 +539,7 @@ class ItemThumb extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = color ?? AppColors.primary;
-    final words = label.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty && RegExp(r'[A-Za-zÀ-ÿ0-9]').hasMatch(w));
+    final words = label.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty && RegExp(r'[A-Za-zÀ-ÿ0-9؀-ۿ]').hasMatch(w));
     final initials = words.isEmpty ? '?' : words.take(2).map((w) => w.characters.first.toUpperCase()).join();
     final fallback = Container(
       width: size,

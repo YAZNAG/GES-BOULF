@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
+import 'i18n.dart';
+
 /// Erreur renvoyée par l'API (format Laravel : {message, errors?}).
 class ApiException implements Exception {
   ApiException(this.message, {this.status = 0, this.errors = const {}, this.code, this.data = const {}});
@@ -140,15 +142,15 @@ class ApiClient {
     try {
       res = await call().timeout(_timeout);
     } on SocketException {
-      throw ApiException('Pas de connexion au serveur. Vérifiez votre réseau.');
+      throw ApiException(tr('Pas de connexion au serveur. Vérifiez votre réseau.'));
     } on TimeoutException {
-      throw ApiException('Le serveur ne répond pas. Réessayez.');
+      throw ApiException(tr('Le serveur ne répond pas. Réessayez.'));
     } on HandshakeException {
-      throw ApiException('Connexion sécurisée impossible avec le serveur.');
+      throw ApiException(tr('Connexion sécurisée impossible avec le serveur.'));
     } on http.ClientException {
-      throw ApiException('Connexion au serveur impossible.');
+      throw ApiException(tr('Connexion au serveur impossible.'));
     } on FormatException {
-      throw ApiException('Adresse du serveur invalide.');
+      throw ApiException(tr('Adresse du serveur invalide.'));
     }
 
     dynamic body;
@@ -162,7 +164,7 @@ class ApiClient {
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       if (body == null && res.body.isNotEmpty && res.body.trimLeft().startsWith('<')) {
-        throw ApiException('Réponse inattendue du serveur. Vérifiez l’adresse du serveur.');
+        throw ApiException(tr('Réponse inattendue du serveur. Vérifiez l’adresse du serveur.'));
       }
       return body;
     }
@@ -184,21 +186,21 @@ class ApiClient {
     if (message.isEmpty || technical || (res.statusCode >= 500 && message.length > 160)) {
       message = _defaultMessage(res.statusCode);
     }
-    if (res.statusCode == 401) message = 'Session expirée. Reconnectez-vous.';
+    if (res.statusCode == 401) message = tr('Session expirée. Reconnectez-vous.');
     final ex = ApiException(message, status: res.statusCode, errors: errors, code: json['code']?.toString(), data: json);
     if (ex.isUnauthenticated && token != null) onUnauthenticated?.call();
     throw ex;
   }
 
   static String _defaultMessage(int status) => switch (status) {
-        401 => 'Session expirée. Reconnectez-vous.',
-        403 => 'Action non autorisée.',
-        404 => 'Ressource introuvable.',
-        419 => 'Session expirée. Reconnectez-vous.',
-        422 => 'Données invalides.',
-        429 => 'Trop de tentatives. Réessayez dans une minute.',
-        >= 500 => 'Erreur du serveur. Réessayez plus tard.',
-        _ => 'Une erreur est survenue ($status).',
+        401 => tr('Session expirée. Reconnectez-vous.'),
+        403 => tr('Action non autorisée.'),
+        404 => tr('Ressource introuvable.'),
+        419 => tr('Session expirée. Reconnectez-vous.'),
+        422 => tr('Données invalides.'),
+        429 => tr('Trop de tentatives. Réessayez dans une minute.'),
+        >= 500 => tr('Erreur du serveur. Réessayez plus tard.'),
+        _ => tr('Une erreur est survenue ({status}).', {'status': status}),
       };
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/lines_editor.dart';
@@ -37,7 +38,7 @@ class _OrderFormState extends State<OrderForm> {
       _expected = o.strOrNull('date_prevue')?.substring(0, 10);
       _note.text = o.str('note');
       for (final l in o.list('lignes')) {
-        _lines.add(DocLine(l.obj('article') ?? {'id': l['article_id'], 'nom': 'Article #${l['article_id']}'},
+        _lines.add(DocLine(l.obj('article') ?? {'id': l['article_id'], 'nom': tr('Article #{id}', {'id': l['article_id']})},
             quantity: l.dbl('quantite'), price: priceInput(l['prix_unitaire'])));
       }
     }
@@ -56,10 +57,10 @@ class _OrderFormState extends State<OrderForm> {
 
   Future<void> _save() async {
     final errors = <String, List<String>>{};
-    if (_supplier == null) errors['fournisseur_id'] = ['Choisissez un fournisseur.'];
-    if (_lines.isEmpty) errors['lignes'] = ['Ajoutez au moins un article.'];
+    if (_supplier == null) errors['fournisseur_id'] = [tr('Choisissez un fournisseur.')];
+    if (_lines.isEmpty) errors['lignes'] = [tr('Ajoutez au moins un article.')];
     for (var i = 0; i < _lines.length; i++) {
-      if (_lines[i].qtyValue <= 0) errors['lignes.$i.quantite'] = ['Quantité > 0'];
+      if (_lines[i].qtyValue <= 0) errors['lignes.$i.quantite'] = [tr('Quantité > 0')];
     }
     if (errors.isNotEmpty) {
       setState(() => _errors = errors);
@@ -84,7 +85,7 @@ class _OrderFormState extends State<OrderForm> {
           ? await api.post('achats/commandes', body)
           : await api.put('achats/commandes/${widget.order!.integer('id')}', body);
       if (!mounted) return;
-      showSuccess(context, widget.order == null ? 'Bon de commande créé.' : 'Bon de commande modifié.');
+      showSuccess(context, widget.order == null ? tr('Bon de commande créé.') : tr('Bon de commande modifié.'));
       final id = res is Map ? res.cast<String, dynamic>().intOrNull('id') : null;
       if (widget.order == null && id != null) {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => OrderDetailScreen(orderId: id)));
@@ -105,10 +106,10 @@ class _OrderFormState extends State<OrderForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar(widget.order == null ? 'Nouveau bon de commande' : 'Modifier ${widget.order!.str('numero')}'),
+      appBar: darkAppBar(widget.order == null ? tr('Nouveau bon de commande') : tr('Modifier {numero}', {'numero': widget.order!.str('numero')})),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         EntityField(
-          label: 'Fournisseur *',
+          label: tr('Fournisseur *'),
           icon: Icons.local_shipping_outlined,
           text: _supplier?.str('nom'),
           error: _errors['fournisseur_id']?.first,
@@ -119,29 +120,29 @@ class _OrderFormState extends State<OrderForm> {
         ),
         const SizedBox(height: 12),
         Row(children: [
-          Expanded(child: DateField(label: 'Date', value: _date, onChanged: (v) => setState(() => _date = v))),
+          Expanded(child: DateField(label: tr('Date'), value: _date, onChanged: (v) => setState(() => _date = v))),
           const SizedBox(width: 10),
           Expanded(
-            child: DateField(label: 'Livraison prévue', value: _expected, allowClear: true, onChanged: (v) => setState(() => _expected = v)),
+            child: DateField(label: tr('Livraison prévue'), value: _expected, allowClear: true, onChanged: (v) => setState(() => _expected = v)),
           ),
         ]),
         const SizedBox(height: 12),
-        TextField(controller: _note, maxLines: 2, decoration: const InputDecoration(labelText: 'Note (facultatif)')),
-        const GroupLabel('Articles'),
+        TextField(controller: _note, maxLines: 2, decoration: InputDecoration(labelText: tr('Note (facultatif)'))),
+        GroupLabel(tr('Articles')),
         LinesEditor(
           lines: _lines,
           onChanged: () => setState(() {}),
-          priceLabel: 'Prix unitaire',
+          priceLabel: tr('Prix unitaire'),
           priceErrorKey: 'prix_unitaire',
           errors: _errors,
         ),
       ]),
       bottomNavigationBar: BottomAction(
         leading: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          const Text('Total', style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+          Text(tr('Total'), style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
           FittedBox(child: Text(money(_total), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18))),
         ]),
-        label: 'Enregistrer',
+        label: tr('Enregistrer'),
         busy: _busy,
         onPressed: _save,
       ),

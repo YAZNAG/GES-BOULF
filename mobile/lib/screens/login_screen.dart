@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/i18n.dart';
 import '../core/session.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
+import '../widgets/language_switch.dart';
 
 /// Logo Boulfrik (carré rouge arrondi).
 class BrandLogo extends StatelessWidget {
@@ -76,12 +78,12 @@ class _LoginScreenState extends State<LoginScreen> {
       await session.login(_email.text, _password.text);
     } on ApiException catch (e) {
       setState(() => _error = switch (e.status) {
-            422 => e.field('email') ?? e.field('password') ?? 'E-mail ou mot de passe incorrect.',
-            403 => e.message.isNotEmpty ? e.message : 'Ce compte est désactivé.',
+            422 => e.field('email') ?? e.field('password') ?? tr('E-mail ou mot de passe incorrect.'),
+            403 => e.message.isNotEmpty ? e.message : tr('Ce compte est désactivé.'),
             _ => e.message,
           });
     } catch (_) {
-      setState(() => _error = 'Connexion impossible.');
+      setState(() => _error = tr('Connexion impossible.'));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -135,8 +137,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 keyboardType: TextInputType.emailAddress,
                                 autofillHints: const [AutofillHints.email],
                                 textInputAction: TextInputAction.next,
-                                decoration: const InputDecoration(labelText: 'Adresse e-mail', prefixIcon: Icon(Icons.mail_outline)),
-                                validator: (v) => (v == null || !v.contains('@')) ? 'Saisissez votre adresse e-mail.' : null,
+                                textDirection: TextDirection.ltr,
+                                decoration: InputDecoration(labelText: tr('Adresse e-mail'), prefixIcon: const Icon(Icons.mail_outline)),
+                                validator: (v) => (v == null || !v.contains('@')) ? tr('Saisissez votre adresse e-mail.') : null,
                               ),
                               const SizedBox(height: 12),
                               TextFormField(
@@ -146,14 +149,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                 textInputAction: TextInputAction.done,
                                 onFieldSubmitted: (_) => _submit(),
                                 decoration: InputDecoration(
-                                  labelText: 'Mot de passe',
+                                  labelText: tr('Mot de passe'),
                                   prefixIcon: const Icon(Icons.lock_outline),
                                   suffixIcon: IconButton(
                                     icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
                                     onPressed: () => setState(() => _obscure = !_obscure),
                                   ),
                                 ),
-                                validator: (v) => (v == null || v.isEmpty) ? 'Saisissez votre mot de passe.' : null,
+                                validator: (v) => (v == null || v.isEmpty) ? tr('Saisissez votre mot de passe.') : null,
                               ),
                               if (_error != null) ...[
                                 const SizedBox(height: 12),
@@ -176,7 +179,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 child: _busy
                                     ? const SizedBox(
                                         width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white))
-                                    : const Text('Se connecter'),
+                                    : Text(tr('Se connecter')),
                               ),
                               AnimatedCrossFade(
                                 duration: const Duration(milliseconds: 200),
@@ -189,11 +192,11 @@ class _LoginScreenState extends State<LoginScreen> {
                                     keyboardType: TextInputType.url,
                                     autocorrect: false,
                                     decoration: InputDecoration(
-                                      labelText: 'Adresse du serveur',
+                                      labelText: tr('Adresse du serveur'),
                                       hintText: defaultServer,
                                       isDense: true,
                                       suffixIcon: IconButton(
-                                        tooltip: 'Par défaut',
+                                        tooltip: tr('Par défaut'),
                                         icon: const Icon(Icons.restart_alt),
                                         onPressed: () => setState(() => _server.text = defaultServer),
                                       ),
@@ -201,12 +204,14 @@ class _LoginScreenState extends State<LoginScreen> {
                                     onChanged: (_) => setState(() {}),
                                   ),
                                   const SizedBox(height: 6),
-                                  const Text(
-                                    'À modifier uniquement pour un serveur de test (ex. http://10.0.2.2:8000).',
-                                    style: TextStyle(color: AppColors.muted, fontSize: 12),
+                                  Text(
+                                    tr('À modifier uniquement pour un serveur de test (ex. http://10.0.2.2:8000).'),
+                                    style: const TextStyle(color: AppColors.muted, fontSize: 12),
                                   ),
                                 ]),
                               ),
+                              const SizedBox(height: 16),
+                              const Center(child: LanguageSelector()),
                             ]),
                           ),
                         ),

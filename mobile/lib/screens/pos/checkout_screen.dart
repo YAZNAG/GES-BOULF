@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/pickers.dart';
@@ -35,7 +36,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   double get _credit => _receivedValue < _total ? round2(_total - _receivedValue) : 0;
 
   String? get _blocking {
-    if (_received.text.trim().isNotEmpty && parseInput(_received.text) == null) return 'Montant reçu invalide.';
+    if (_received.text.trim().isNotEmpty && parseInput(_received.text) == null) return tr('Montant reçu invalide.');
     return null;
   }
 
@@ -74,11 +75,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (_credit > 0) {
       final ok = await confirm(
         context,
-        _client == null ? 'Paiement partiel' : 'Vente à crédit',
+        _client == null ? tr('Paiement partiel') : tr('Vente à crédit'),
         _client == null
-            ? 'Le reste de ${money(_credit)} sera suivi dans « Clients de passage ». Continuer ?'
-            : '${money(_credit)} seront ajoutés au crédit de ${_client!.str('nom')}. Continuer ?',
-        ok: 'Valider',
+            ? tr('Le reste de {montant} sera suivi dans « Clients de passage ». Continuer ?', {'montant': money(_credit)})
+            : tr('{montant} seront ajoutés au crédit de {client}. Continuer ?', {'montant': money(_credit), 'client': _client!.str('nom')}),
+        ok: tr('Valider'),
       );
       if (!ok || !mounted) return;
     }
@@ -127,44 +128,44 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final blocking = _blocking;
     final count = widget.items.length;
     return Scaffold(
-      appBar: darkAppBar('Encaissement'),
+      appBar: darkAppBar(tr('Encaissement')),
       body: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(gradient: AppColors.headerGradient, borderRadius: BorderRadius.circular(20)),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Total à payer · $count article${count > 1 ? 's' : ''}', style: const TextStyle(color: Colors.white70)),
+            Text(count > 1 ? tr('Total à payer · {n} articles', {'n': count}) : tr('Total à payer · {n} article', {'n': count}), style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 4),
             FittedBox(
               fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
+              alignment: AlignmentDirectional.centerStart,
               child: Text(money(_total), style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w900)),
             ),
           ]),
         ),
-        const GroupLabel('Client'),
+        GroupLabel(tr('Client')),
         Card(
           clipBehavior: Clip.antiAlias,
           child: ListTile(
-            contentPadding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+            contentPadding: const EdgeInsetsDirectional.fromSTEB(14, 6, 6, 6),
             leading: IconSquare(_client == null ? Icons.directions_walk : Icons.person, color: _client == null ? AppColors.muted : AppColors.violet),
-            title: Text(_client?.str('nom') ?? 'Client de passage', style: const TextStyle(fontWeight: FontWeight.w700)),
+            title: Text(_client?.str('nom') ?? tr('Client de passage'), style: const TextStyle(fontWeight: FontWeight.w700)),
             subtitle: Text(_client == null
-                ? 'Paiement partiel possible : le reste est suivi'
+                ? tr('Paiement partiel possible : le reste est suivi')
                 : [
                     if (_client!.strOrNull('telephone') != null) _client!.str('telephone'),
-                    'Crédit actuel : ${money(_client!['solde'])}',
+                    tr('Crédit actuel : {montant}', {'montant': money(_client!['solde'])}),
                   ].join(' · ')),
             trailing: _client == null
-                ? TextButton(onPressed: _pickClient, child: const Text('Choisir'))
+                ? TextButton(onPressed: _pickClient, child: Text(tr('Choisir')))
                 : Row(mainAxisSize: MainAxisSize.min, children: [
-                    IconButton(tooltip: 'Changer', icon: const Icon(Icons.swap_horiz), onPressed: _pickClient),
-                    IconButton(tooltip: 'Client de passage', icon: const Icon(Icons.close), onPressed: () => setState(() => _client = null)),
+                    IconButton(tooltip: tr('Changer'), icon: const Icon(Icons.swap_horiz), onPressed: _pickClient),
+                    IconButton(tooltip: tr('Client de passage'), icon: const Icon(Icons.close), onPressed: () => setState(() => _client = null)),
                   ]),
             onTap: _pickClient,
           ),
         ),
-        const GroupLabel('Mode de paiement'),
+        GroupLabel(tr('Mode de paiement')),
         PaymentModePicker(
           value: _mode,
           onChanged: (m) => setState(() {
@@ -172,15 +173,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             if (m != 'especes' && _receivedValue > _total) _setReceived(_total);
           }),
         ),
-        const GroupLabel('Montant reçu'),
+        GroupLabel(tr('Montant reçu')),
         TextField(
           controller: _received,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           decoration: InputDecoration(
-            suffixText: 'DH',
+            suffixText: tr('DH'),
             prefixIcon: const Icon(Icons.payments_outlined),
-            suffixIcon: IconButton(tooltip: 'Effacer', icon: const Icon(Icons.backspace_outlined), onPressed: () => setState(_received.clear)),
+            suffixIcon: IconButton(tooltip: tr('Effacer'), icon: const Icon(Icons.backspace_outlined), onPressed: () => setState(_received.clear)),
           ),
           onChanged: (_) => setState(() {}),
         ),
@@ -188,32 +189,32 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         Wrap(spacing: 8, runSpacing: 8, children: [
           ActionChip(
             avatar: const Icon(Icons.done_all, size: 18),
-            label: const Text('Montant exact'),
+            label: Text(tr('Montant exact')),
             onPressed: () => _setReceived(_total),
           ),
           if (_mode == 'especes')
             for (final v in _suggestions()) ActionChip(label: Text(moneyShort(v)), onPressed: () => _setReceived(v)),
-          if (_client != null) ActionChip(avatar: const Icon(Icons.schedule, size: 18), label: const Text('Tout à crédit'), onPressed: () => _setReceived(0)),
+          if (_client != null) ActionChip(avatar: const Icon(Icons.schedule, size: 18), label: Text(tr('Tout à crédit')), onPressed: () => _setReceived(0)),
         ]),
         const SizedBox(height: 16),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(children: [
-              TotalLine('Total', money(_total)),
-              TotalLine('Reçu', money(_receivedValue)),
+              TotalLine(tr('Total'), money(_total)),
+              TotalLine(tr('Reçu'), money(_receivedValue)),
               if (_change > 0) ...[
                 const Divider(height: 18),
-                TotalLine('Rendu monnaie', money(_change), big: true, color: AppColors.success),
+                TotalLine(tr('Rendu monnaie'), money(_change), big: true, color: AppColors.success),
               ],
               if (_credit > 0) ...[
                 const Divider(height: 18),
-                TotalLine(_client != null ? 'Reste en crédit client' : 'Reste à encaisser', money(_credit),
+                TotalLine(_client != null ? tr('Reste en crédit client') : tr('Reste à encaisser'), money(_credit),
                     big: true, color: AppColors.warning),
               ],
               if (_change == 0 && _credit == 0) ...[
                 const Divider(height: 18),
-                const TotalLine('Paiement', 'Complet', bold: true, color: AppColors.success),
+                TotalLine(tr('Paiement'), tr('Complet'), bold: true, color: AppColors.success),
               ],
             ]),
           ),
@@ -228,7 +229,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   const Icon(Icons.directions_walk, color: AppColors.warning),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text('Le reste de ${money(_credit)} sera suivi dans « Clients de passage ».',
+                    child: Text(tr('Le reste de {montant} sera suivi dans « Clients de passage ».', {'montant': money(_credit)}),
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ]),
@@ -236,13 +237,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 TextField(
                   controller: _nomPassage,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'Nom (facultatif)', prefixIcon: Icon(Icons.person_outline)),
+                  decoration: InputDecoration(labelText: tr('Nom (facultatif)'), prefixIcon: const Icon(Icons.person_outline)),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: _telPassage,
                   keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(labelText: 'Téléphone (facultatif)', prefixIcon: Icon(Icons.phone_outlined)),
+                  decoration: InputDecoration(labelText: tr('Téléphone (facultatif)'), prefixIcon: const Icon(Icons.phone_outlined)),
                 ),
               ]),
             ),
@@ -260,7 +261,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ]),
           ),
         ],
-        const GroupLabel('Articles'),
+        GroupLabel(tr('Articles')),
         Card(
           child: Column(children: [
             for (final (i, it) in widget.items.indexed) ...[
@@ -276,7 +277,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
       ]),
       bottomNavigationBar: BottomAction(
-        label: 'Valider la vente',
+        label: tr('Valider la vente'),
         icon: Icons.check_circle_outline,
         busy: _busy,
         onPressed: blocking == null ? _submit : null,
@@ -338,10 +339,10 @@ class SaleSuccessScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 22),
-                    const Text('Vente enregistrée', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
+                    Text(tr('Vente enregistrée'), style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 6),
                     Text(
-                      invoiceNumber == null ? 'Facture créée' : 'Facture n° $invoiceNumber',
+                      invoiceNumber == null ? tr('Facture créée') : tr('Facture n° {numero}', {'numero': invoiceNumber}),
                       style: const TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 26),
@@ -349,20 +350,20 @@ class SaleSuccessScreen extends StatelessWidget {
                       child: Padding(
                         padding: const EdgeInsets.all(18),
                         child: Column(children: [
-                          TotalLine('Client', clientName ?? 'Client de passage'),
-                          TotalLine('Mode', paymentModeLabel(mode)),
+                          TotalLine(tr('Client'), clientName ?? tr('Client de passage')),
+                          TotalLine(tr('Mode'), paymentModeLabel(mode)),
                           const Divider(height: 18),
-                          TotalLine('Total', money(total), bold: true),
-                          TotalLine('Payé', money(paid)),
-                          if (change > 0) TotalLine('Rendu monnaie', money(change), big: true, color: AppColors.success),
+                          TotalLine(tr('Total'), money(total), bold: true),
+                          TotalLine(tr('Payé'), money(paid)),
+                          if (change > 0) TotalLine(tr('Rendu monnaie'), money(change), big: true, color: AppColors.success),
                           if (credit > 0)
-                            TotalLine(walkIn ? 'Reste à encaisser' : 'Ajouté au crédit', money(credit),
+                            TotalLine(walkIn ? tr('Reste à encaisser') : tr('Ajouté au crédit'), money(credit),
                                 big: true, color: AppColors.warning),
                           if (credit > 0 && walkIn)
-                            const Padding(
-                              padding: EdgeInsets.only(top: 6),
-                              child: Text('Suivi dans Plus › Clients de passage.',
-                                  style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(tr('Suivi dans Plus › Clients de passage.'),
+                                  style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
                             ),
                         ]),
                       ),
@@ -377,7 +378,7 @@ class SaleSuccessScreen extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.add_shopping_cart),
-                  label: const Text('Nouvelle vente'),
+                  label: Text(tr('Nouvelle vente')),
                 ),
                 if (saleId != null) ...[
                   const SizedBox(height: 8),
@@ -387,7 +388,7 @@ class SaleSuccessScreen extends StatelessWidget {
                       MaterialPageRoute(builder: (_) => SaleDetailScreen(saleId: saleId!)),
                     ),
                     icon: const Icon(Icons.receipt_long_outlined),
-                    label: const Text('Voir le détail'),
+                    label: Text(tr('Voir le détail')),
                   ),
                 ],
               ]),

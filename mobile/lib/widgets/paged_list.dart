@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/i18n.dart';
 import '../core/theme.dart';
 import 'common.dart';
 
@@ -133,7 +134,7 @@ class PagedListState<T> extends State<PagedList<T>> {
             controller: _search,
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
-              hintText: widget.searchHint,
+              hintText: tr(widget.searchHint),
               prefixIcon: const Icon(Icons.search),
               fillColor: AppColors.surface,
               isDense: true,
@@ -142,7 +143,7 @@ class PagedListState<T> extends State<PagedList<T>> {
                 if (widget.onScan != null)
                   IconButton(
                     icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary),
-                    tooltip: 'Scanner',
+                    tooltip: tr('Scanner'),
                     onPressed: widget.onScan,
                   ),
               ]),
@@ -200,8 +201,10 @@ class PagedListState<T> extends State<PagedList<T>> {
             height: 360,
             child: EmptyState(
               icon: widget.emptyIcon,
-              title: _search.text.isEmpty ? widget.emptyTitle : 'Aucun résultat',
-              message: _search.text.isEmpty ? widget.emptyMessage : 'Aucun élément ne correspond à « ${_search.text} ».',
+              title: _search.text.isEmpty ? tr(widget.emptyTitle) : tr('Aucun résultat'),
+              message: _search.text.isEmpty
+                  ? (widget.emptyMessage == null ? null : tr(widget.emptyMessage!))
+                  : tr('Aucun élément ne correspond à « {q} ».', {'q': _search.text}),
             ),
           ),
         ]),
@@ -223,7 +226,7 @@ class PagedListState<T> extends State<PagedList<T>> {
               return Padding(
                 padding: const EdgeInsets.all(16),
                 child: Center(
-                  child: TextButton.icon(onPressed: _loadMore, icon: const Icon(Icons.refresh), label: const Text('Charger la suite')),
+                  child: TextButton.icon(onPressed: _loadMore, icon: const Icon(Icons.refresh), label: Text(tr('Charger la suite'))),
                 ),
               );
             }
@@ -233,7 +236,7 @@ class PagedListState<T> extends State<PagedList<T>> {
             return Padding(
               padding: const EdgeInsets.all(16),
               child: Center(
-                child: Text('$_total élément${_total > 1 ? 's' : ''}', style: const TextStyle(color: AppColors.muted, fontSize: 12)),
+                child: Text(_total > 1 ? tr('{n} éléments', {'n': _total}) : tr('{n} élément', {'n': _total}), style: const TextStyle(color: AppColors.muted, fontSize: 12)),
               ),
             );
           }
@@ -271,9 +274,9 @@ class FilterChips<V> extends StatelessWidget {
           ...?leading,
           for (final (v, label) in options)
             Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsetsDirectional.only(end: 8),
               child: ChoiceChip(
-                label: Text(label),
+                label: Text(tr(label)),
                 selected: v == value,
                 showCheckmark: false,
                 selectedColor: AppColors.primary.withValues(alpha: 0.12),

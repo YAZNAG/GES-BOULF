@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/article.dart';
+import '../core/i18n.dart';
 import '../core/theme.dart';
 import '../screens/products/quick_add_screen.dart';
 import 'common.dart';
@@ -40,19 +42,19 @@ class _UnknownDialog extends StatelessWidget {
         final fiche = res.obj('fiche') ?? const {};
         final trouve = fiche.flag('trouve');
         final img = context.api.imageUrl(fiche['image_url']);
-        final ar = fiche.strOrNull('name_ar');
+        final ar = fiche.articleNameAr;
         return AlertDialog(
           icon: const Icon(Icons.qr_code_2, color: AppColors.primary, size: 34),
-          title: const Text('Produit introuvable'),
+          title: Text(tr('Produit introuvable')),
           content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text('Le code $code n’existe pas dans le magasin.', textAlign: TextAlign.center),
+            Text(tr('Le code {code} n’existe pas dans le magasin.', {'code': code}), textAlign: TextAlign.center),
             const SizedBox(height: 14),
             if (loading)
-              const Column(children: [
-                SizedBox(height: 8),
-                CircularProgressIndicator(),
-                SizedBox(height: 10),
-                Text('Recherche automatique du produit…', style: TextStyle(color: AppColors.muted)),
+              Column(children: [
+                const SizedBox(height: 8),
+                const CircularProgressIndicator(),
+                const SizedBox(height: 10),
+                Text(tr('Recherche automatique du produit…'), style: const TextStyle(color: AppColors.muted)),
               ])
             else if (trouve)
               Container(
@@ -76,14 +78,20 @@ class _UnknownDialog extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Row(children: const [
-                        Icon(Icons.auto_awesome, size: 14, color: AppColors.success),
-                        SizedBox(width: 4),
-                        Text('Trouvé automatiquement', style: TextStyle(color: AppColors.success, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                      Row(children: [
+                        const Icon(Icons.auto_awesome, size: 14, color: AppColors.success),
+                        const SizedBox(width: 4),
+                        Text(tr('Trouvé automatiquement'), style: const TextStyle(color: AppColors.success, fontSize: 11.5, fontWeight: FontWeight.w700)),
                       ]),
                       const SizedBox(height: 2),
-                      Text(fiche.str('name_fr'), maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-                      if (ar != null) Align(alignment: Alignment.centerLeft, child: ArabicText(ar, maxLines: 1)),
+                      Text(fiche.articleName, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      if (ar != null)
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: appLang.isAr
+                              ? Directionality(textDirection: TextDirection.ltr, child: Text(ar, maxLines: 1, overflow: TextOverflow.ellipsis))
+                              : ArabicText(ar, maxLines: 1),
+                        ),
                     ]),
                   ),
                 ]),
@@ -91,23 +99,23 @@ class _UnknownDialog extends StatelessWidget {
             else
               Text(
                 snap.hasError
-                    ? 'Recherche automatique indisponible. Vous pouvez saisir le produit vous-même.'
-                    : 'Produit inconnu des bases ouvertes : saisissez son nom, sa catégorie et son prix.',
+                    ? tr('Recherche automatique indisponible. Vous pouvez saisir le produit vous-même.')
+                    : tr('Produit inconnu des bases ouvertes : saisissez son nom, sa catégorie et son prix.'),
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: AppColors.muted),
               ),
             if (!loading) ...[
               const SizedBox(height: 10),
-              const Text('Il suffit ensuite d’indiquer le prix de vente.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, color: AppColors.muted)),
+              Text(tr('Il suffit ensuite d’indiquer le prix de vente.'), textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, color: AppColors.muted)),
             ],
           ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Fermer')),
+            TextButton(onPressed: () => Navigator.pop(context), child: Text(tr('Fermer'))),
             FilledButton.icon(
               // Pendant la recherche, le bouton reste actif : le formulaire attendra le résultat.
               onPressed: () => Navigator.pop(context, snap.data ?? <String, dynamic>{}),
               icon: const Icon(Icons.add_circle_outline),
-              label: const Text('Ajouter ce produit'),
+              label: Text(tr('Ajouter ce produit')),
             ),
           ],
         );

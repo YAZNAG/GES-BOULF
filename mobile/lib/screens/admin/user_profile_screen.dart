@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
+import '../../widgets/language_switch.dart';
 import '../../widgets/paged_list.dart';
 import '../purchases/orders_screens.dart';
 import '../purchases/receipts_screens.dart';
@@ -89,11 +91,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final isMe = widget.self || widget.userId == me;
     final actif = _user?.flag('actif', true) ?? true;
     return Scaffold(
-      appBar: darkAppBar(widget.self ? 'Mon profil' : 'Profil utilisateur', actions: [
-        if (canEdit && _user != null) IconButton(tooltip: 'Modifier', icon: const Icon(Icons.edit_outlined), onPressed: _edit),
+      appBar: darkAppBar(widget.self ? tr('Mon profil') : tr('Profil utilisateur'), actions: [
+        if (canEdit && _user != null) IconButton(tooltip: tr('Modifier'), icon: const Icon(Icons.edit_outlined), onPressed: _edit),
         if (canEdit && _user != null && !isMe)
           PopupMenuButton<String>(
-            tooltip: 'Actions',
+            tooltip: tr('Actions'),
             onSelected: (v) => switch (v) {
               'toggle' => _toggle(),
               _ => _delete(),
@@ -103,14 +105,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
                 value: 'toggle',
                 child: ListTile(
                   leading: Icon(actif ? Icons.block : Icons.check_circle_outline),
-                  title: Text(actif ? 'Désactiver le compte' : 'Activer le compte'),
+                  title: Text(actif ? tr('Désactiver le compte') : tr('Activer le compte')),
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'delete',
                 child: ListTile(
-                  leading: Icon(Icons.delete_outline, color: AppColors.danger),
-                  title: Text('Supprimer', style: TextStyle(color: AppColors.danger)),
+                  leading: const Icon(Icons.delete_outline, color: AppColors.danger),
+                  title: Text(tr('Supprimer'), style: const TextStyle(color: AppColors.danger)),
                 ),
               ),
             ],
@@ -122,11 +124,11 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: FilterChips<_Period>(
-            options: const [
-              (_Period.today, 'Aujourd’hui'),
-              (_Period.month, 'Ce mois'),
-              (_Period.lastMonth, 'Mois dernier'),
-              (_Period.days30, '30 jours'),
+            options: [
+              (_Period.today, tr('Aujourd’hui')),
+              (_Period.month, tr('Ce mois')),
+              (_Period.lastMonth, tr('Mois dernier')),
+              (_Period.days30, tr('30 jours')),
             ],
             value: _period,
             onChanged: (v) {
@@ -162,7 +164,6 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
     final dv = d.list('dernieres_ventes');
     final dr = d.list('dernieres_receptions');
     final dc = d.list('derniers_bons_commande');
-    String plural(int n, String w) => '$n $w${n > 1 ? 's' : ''}';
 
     return ListView(padding: const EdgeInsets.all(16), children: [
       Container(
@@ -182,7 +183,7 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
               const SizedBox(height: 8),
               Wrap(spacing: 6, runSpacing: 4, children: [
                 Badge2(roleLabel(u.obj('role')?.str('nom') ?? ''), color: const Color(0xFFFCA5A5)),
-                Badge2(actif ? 'Actif' : 'Désactivé', color: actif ? const Color(0xFF86EFAC) : const Color(0xFFCBD5E1)),
+                Badge2(actif ? tr('Actif') : tr('Désactivé'), color: actif ? const Color(0xFF86EFAC) : const Color(0xFFCBD5E1)),
               ]),
             ]),
           ),
@@ -191,10 +192,14 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
       if (periode != null)
         Padding(
           padding: const EdgeInsets.only(top: 10),
-          child: Text('Période du ${date(periode['du'])} au ${date(periode['au'])}',
+          child: Text(tr('Période du {du} au {au}', {'du': date(periode['du']), 'au': date(periode['au'])}),
               textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
         ),
-      const GroupLabel('Activité'),
+      if (widget.self) ...[
+        const SizedBox(height: 16),
+        const LanguageCard(),
+      ],
+      GroupLabel(tr('Activité')),
       GridView.count(
         crossAxisCount: 2,
         shrinkWrap: true,
@@ -205,64 +210,70 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
         childAspectRatio: 1.45,
         children: [
           StatTile(
-            label: 'Ventes',
+            label: tr('Ventes'),
             value: moneyShort(ventes['montant']),
-            hint: plural(ventes.integer('nombre'), 'vente'),
+            hint: ventes.integer('nombre') > 1
+                ? tr('{n} ventes', {'n': ventes.integer('nombre')})
+                : tr('{n} vente', {'n': ventes.integer('nombre')}),
             icon: Icons.point_of_sale,
             color: AppColors.success,
           ),
           StatTile(
-            label: 'Encaissé',
+            label: tr('Encaissé'),
             value: moneyShort(ventes['encaisse']),
-            hint: 'sur les ventes',
+            hint: tr('sur les ventes'),
             icon: Icons.payments_outlined,
             color: AppColors.teal,
           ),
           StatTile(
-            label: 'Bons de réception',
+            label: tr('Bons de réception'),
             value: moneyShort(receptions['montant']),
-            hint: plural(receptions.integer('nombre'), 'bon'),
+            hint: receptions.integer('nombre') > 1
+                ? tr('{n} bons', {'n': receptions.integer('nombre')})
+                : tr('{n} bon', {'n': receptions.integer('nombre')}),
             icon: Icons.move_to_inbox_outlined,
             color: AppColors.info,
           ),
           StatTile(
-            label: 'Bons de commande',
+            label: tr('Bons de commande'),
             value: moneyShort(commandes['montant']),
-            hint: plural(commandes.integer('nombre'), 'bon'),
+            hint: commandes.integer('nombre') > 1
+                ? tr('{n} bons', {'n': commandes.integer('nombre')})
+                : tr('{n} bon', {'n': commandes.integer('nombre')}),
             icon: Icons.receipt_long_outlined,
             color: AppColors.violet,
           ),
           StatTile(
-            label: 'Retours clients',
+            label: tr('Retours clients'),
             value: moneyShort(d['retours_clients']),
             icon: Icons.assignment_return_outlined,
             color: AppColors.warning,
           ),
           StatTile(
-            label: 'Charges',
+            label: tr('Charges'),
             value: moneyShort(d['charges']),
             icon: Icons.receipt_outlined,
             color: AppColors.danger,
           ),
         ],
       ),
-      const GroupLabel('Dernières ventes'),
-      _listCard(dv.isEmpty, 'Aucune vente sur la période.', [
+      GroupLabel(tr('Dernières ventes')),
+      _listCard(dv.isEmpty, tr('Aucune vente sur la période.'), [
         for (final v in dv)
           ListTile(
             leading: IconSquare(
               v.dbl('montant_total') - v.dbl('montant_paye') > 0.009 ? Icons.schedule : Icons.receipt_long,
               color: v.dbl('montant_total') - v.dbl('montant_paye') > 0.009 ? AppColors.warning : AppColors.success,
             ),
-            title: Text(v.obj('client')?.strOrNull('nom') ?? v.strOrNull('nom_passage') ?? 'Client de passage',
+            title: Text(v.obj('client')?.strOrNull('nom') ?? v.strOrNull('nom_passage') ?? tr('Client de passage'),
                 maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-            subtitle: Text('${dateTime(v['date_vente'])} · n° ${v.integer('id')}', style: const TextStyle(fontSize: 12.5)),
+            subtitle: Text('${dateTime(v['date_vente'])} · ${tr('n° {id}', {'id': v.integer('id')})}', style: const TextStyle(fontSize: 12.5)),
             trailing: Text(money(v['montant_total']), style: const TextStyle(fontWeight: FontWeight.w800)),
             onTap: () => context.push(SaleDetailScreen(saleId: v.integer('id'))),
           ),
       ]),
-      const GroupLabel('Dernières réceptions'),
-      _listCard(dr.isEmpty, 'Aucune réception sur la période.', [
+      GroupLabel(tr('Dernières réceptions')),
+      _listCard(dr.isEmpty, tr('Aucune réception sur la période.'), [
         for (final r in dr)
           ListTile(
             leading: const IconSquare(Icons.move_to_inbox_outlined, color: AppColors.info),
@@ -273,8 +284,8 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
             onTap: () => context.push(ReceiptDetailScreen(receiptId: r.integer('id'))),
           ),
       ]),
-      const GroupLabel('Derniers bons de commande'),
-      _listCard(dc.isEmpty, 'Aucun bon de commande sur la période.', [
+      GroupLabel(tr('Derniers bons de commande')),
+      _listCard(dc.isEmpty, tr('Aucun bon de commande sur la période.'), [
         for (final o in dc)
           ListTile(
             leading: IconSquare(Icons.receipt_long_outlined, color: orderStatusColor(o.str('statut'))),

@@ -1,18 +1,29 @@
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/article.dart';
 import '../core/format.dart';
+import '../core/i18n.dart';
 import '../core/theme.dart';
 import 'common.dart';
 
 /// Filtre de catalogue : famille, catégorie ou sous-catégorie (le niveau le plus fin choisi).
 class CategoryFilter {
-  const CategoryFilter({this.familleId, this.categorieId, this.sousCategorieId, required this.label});
+  // `label` reste un paramètre nommé public (compatibilité des appelants).
+  // ignore: prefer_initializing_formals
+  const CategoryFilter({this.familleId, this.categorieId, this.sousCategorieId, required String label, this.node}) : _label = label;
 
   final int? familleId;
   final int? categorieId;
   final int? sousCategorieId;
-  final String label;
+  final String _label;
+
+  /// Élément choisi (famille, catégorie ou sous-catégorie) : permet d'afficher son nom
+  /// dans la langue courante.
+  final Json? node;
+
+  /// Libellé affiché, dans la langue courante.
+  String get label => node != null ? catName(node, _label) : tr(_label);
 
   bool get isEmpty => familleId == null && categorieId == null && sousCategorieId == null;
 
@@ -49,10 +60,10 @@ class CategoryFilterChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final on = value != null && !value!.isEmpty;
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsetsDirectional.only(end: 8),
       child: InputChip(
         avatar: Icon(Icons.category_outlined, size: 18, color: on ? AppColors.primary : AppColors.muted),
-        label: Text(on ? value!.label : 'Catégorie'),
+        label: Text(on ? value!.label : tr('Catégorie')),
         selected: on,
         showCheckmark: false,
         selectedColor: AppColors.primary.withValues(alpha: 0.12),
@@ -84,8 +95,8 @@ class _CategorySheetState extends State<_CategorySheet> {
   List<Json>? _sous;
   Object? _error;
 
-  static String _name(Json j) => j.str('nom_fr', j.str('name_fr', j.str('nom')));
-  static String? _ar(Json j) => j.strOrNull('nom_ar') ?? j.strOrNull('name_ar');
+  static String _name(Json j) => catName(j);
+  static String? _second(Json j) => catSecondary(j);
 
   @override
   void initState() {
@@ -141,7 +152,7 @@ class _CategorySheetState extends State<_CategorySheet> {
     final f = _famille;
     final c = _categorie;
     final List<Json>? list = c != null ? _sous : (f != null ? _categories : _familles);
-    final title = c != null ? _name(c) : (f != null ? _name(f) : 'Familles');
+    final title = c != null ? _name(c) : (f != null ? _name(f) : tr('Familles'));
     return Column(children: [
       Padding(
         padding: const EdgeInsets.fromLTRB(8, 0, 16, 8),
@@ -151,7 +162,7 @@ class _CategorySheetState extends State<_CategorySheet> {
           if (f == null)
             TextButton(
               onPressed: () => Navigator.pop(context, const CategoryFilter(label: 'Toutes')),
-              child: const Text('Tout afficher'),
+              child: Text(tr('Tout afficher')),
             ),
         ]),
       ),
@@ -171,20 +182,29 @@ class _CategorySheetState extends State<_CategorySheet> {
                 if (c != null)
                   ListTile(
                     leading: const IconSquare(Icons.select_all),
-                    title: Text('Toute la catégorie « ${_name(c)} »', style: const TextStyle(fontWeight: FontWeight.w700)),
-                    onTap: () => Navigator.pop(context, CategoryFilter(familleId: f!.integer('id'), categorieId: c.integer('id'), label: _name(c))),
+                    title: Text(tr('Toute la catégorie « {nom} »', {'nom': _name(c)}), style: const TextStyle(fontWeight: FontWeight.w700)),
+                    onTap: () => Navigator.pop(
+                        context, CategoryFilter(familleId: f!.integer('id'), categorieId: c.integer('id'), label: _name(c), node: c)),
                   )
                 else if (f != null)
                   ListTile(
                     leading: const IconSquare(Icons.select_all),
-                    title: Text('Toute la famille « ${_name(f)} »', style: const TextStyle(fontWeight: FontWeight.w700)),
-                    onTap: () => Navigator.pop(context, CategoryFilter(familleId: f.integer('id'), label: _name(f))),
+                    title: Text(tr('Toute la famille « {nom} »', {'nom': _name(f)}), style: const TextStyle(fontWeight: FontWeight.w700)),
+                    onTap: () => Navigator.pop(context, CategoryFilter(familleId: f.integer('id'), label: _name(f), node: f)),
                   ),
                 for (final it in list)
                   ListTile(
                     leading: ItemThumb(path: it['image'], label: _name(it), size: 42),
                     title: Text(_name(it), style: const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: _ar(it) == null ? null : Align(alignment: Alignment.centerLeft, child: ArabicText(_ar(it)!)),
+                    subtitle: _second(it) == null
+                        ? null
+                        : Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: Directionality(
+                              textDirection: appLang.isAr ? TextDirection.ltr : TextDirection.rtl,
+                              child: Text(_second(it)!, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                            ),
+                          ),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       Text(qty(it['articles_count']), style: const TextStyle(color: AppColors.muted)),
                       if (c == null) const Icon(Icons.chevron_right),
@@ -202,6 +222,7 @@ class _CategorySheetState extends State<_CategorySheet> {
                             categorieId: c.integer('id'),
                             sousCategorieId: it.integer('id'),
                             label: _name(it),
+                            node: it,
                           ),
                         );
                       }

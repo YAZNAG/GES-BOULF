@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/pickers.dart';
@@ -67,8 +68,8 @@ class _PosScreenState extends State<PosScreen> {
 
   /// Ajoute un article au panier. Renvoie un message d'erreur (ou null si ajouté).
   String? _add(Json a) {
-    if (!a.isActive) return '« ${a.articleName} » est inactif : il ne peut pas être vendu.';
-    if (!a.isPriced) return '« ${a.articleName} » n’a pas de prix de vente. Tarifez-le avant de le vendre.';
+    if (!a.isActive) return tr('« {article} » est inactif : il ne peut pas être vendu.', {'article': a.articleName});
+    if (!a.isPriced) return tr('« {article} » n’a pas de prix de vente. Tarifez-le avant de le vendre.', {'article': a.articleName});
     final existing = _cart.where((c) => c.id == a.integer('id')).firstOrNull;
     setState(() {
       if (existing != null) {
@@ -97,7 +98,7 @@ class _PosScreenState extends State<PosScreen> {
         content: Text(err),
         backgroundColor: AppColors.danger,
         action: SnackBarAction(
-                label: 'TARIFER',
+                label: tr('TARIFER'),
                 textColor: Colors.white,
                 onPressed: () async {
                   final ok = await editPrices(context, a);
@@ -202,7 +203,7 @@ class _PosScreenState extends State<PosScreen> {
   /// Scan caméra : un code à la fois, la caméra se ferme et on revient au panier.
   Future<void> _scan() async {
     FocusScope.of(context).unfocus();
-    final code = await ScannerPage.scan(context, title: 'Scanner un article');
+    final code = await ScannerPage.scan(context, title: tr('Scanner un article'));
     if (code == null || !mounted) return;
     try {
       final a = _byCode[code] ?? await runBusy<Json?>(context, () => lookupArticle(context.api, code));
@@ -222,8 +223,8 @@ class _PosScreenState extends State<PosScreen> {
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(
           duration: const Duration(seconds: 2),
-          content: Text('${a.articleName} × ${qty(line.quantity)} — total ${money(_total)}'),
-          action: SnackBarAction(label: 'SCANNER', onPressed: _scan),
+          content: Text(tr('{article} × {qte} — total {total}', {'article': a.articleName, 'qte': qty(line.quantity), 'total': money(_total)})),
+          action: SnackBarAction(label: tr('SCANNER'), onPressed: _scan),
         ));
     } catch (e) {
       if (mounted) showError(context, e);
@@ -235,7 +236,7 @@ class _PosScreenState extends State<PosScreen> {
     final v = await showDialog<double>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Quantité'),
+        title: Text(tr('Quantité')),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Text(item.article.articleName, style: const TextStyle(color: AppColors.muted)),
           const SizedBox(height: 12),
@@ -243,16 +244,16 @@ class _PosScreenState extends State<PosScreen> {
             controller: ctrl,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: InputDecoration(suffixText: item.article.unit, helperText: 'Décimales acceptées pour le vrac (ex. 1,250)'),
+            decoration: InputDecoration(suffixText: item.article.unit, helperText: tr('Décimales acceptées pour le vrac (ex. 1,250)')),
             onSubmitted: (t) => Navigator.pop(c, parseInput(t)),
           ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annuler')),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
           FilledButton(
             style: FilledButton.styleFrom(minimumSize: const Size(64, 42)),
             onPressed: () => Navigator.pop(c, parseInput(ctrl.text)),
-            child: const Text('Valider'),
+            child: Text(tr('Valider')),
           ),
         ],
       ),
@@ -320,16 +321,20 @@ class _PosScreenState extends State<PosScreen> {
                     textAlign: TextAlign.center,
                     style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 0.6)),
               Text(a.articleName, textAlign: TextAlign.center, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
-              if (ar != null) Padding(padding: const EdgeInsets.only(top: 4), child: Center(child: ArabicText(ar))),
+              if (ar != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(ar, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                ),
               const SizedBox(height: 14),
-              InfoRow('Code-barres', a.barcode),
-              if (a.subCategoryName != null) InfoRow('Catégorie', a.subCategoryName!),
-              InfoRow('Stock', a.stockQty == null ? '—' : qty(a.stockQty, a.unit)),
-              InfoRow('Prix du catalogue', money(item.catalogPrice)),
-              InfoRow('Quantité', qty(item.quantity, a.unit)),
+              InfoRow(tr('Code-barres'), a.barcode),
+              if (a.subCategoryName != null) InfoRow(tr('Catégorie'), a.subCategoryName!),
+              InfoRow(tr('Stock'), a.stockQty == null ? '—' : qty(a.stockQty, a.unit)),
+              InfoRow(tr('Prix du catalogue'), money(item.catalogPrice)),
+              InfoRow(tr('Quantité'), qty(item.quantity, a.unit)),
               const Divider(height: 24),
               Row(children: [
-                const Expanded(child: Text('Prix pour cette vente', style: TextStyle(fontWeight: FontWeight.w700))),
+                Expanded(child: Text(tr('Prix pour cette vente'), style: const TextStyle(fontWeight: FontWeight.w700))),
                 Text(money(item.unitPrice),
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: item.priceChanged ? AppColors.warning : AppColors.ink)),
               ]),
@@ -342,7 +347,7 @@ class _PosScreenState extends State<PosScreen> {
                   refresh();
                 },
                 icon: const Icon(Icons.edit_outlined),
-                label: const Text('Changer le prix pour cette vente'),
+                label: Text(tr('Changer le prix pour cette vente')),
               ),
               if (item.priceChanged) ...[
                 const SizedBox(height: 8),
@@ -352,7 +357,7 @@ class _PosScreenState extends State<PosScreen> {
                     refresh();
                   },
                   icon: const Icon(Icons.undo),
-                  label: const Text('Revenir au prix du catalogue'),
+                  label: Text(tr('Revenir au prix du catalogue')),
                 ),
               ],
               const SizedBox(height: 8),
@@ -370,7 +375,7 @@ class _PosScreenState extends State<PosScreen> {
                   refresh();
                 },
                 icon: const Icon(Icons.sell_outlined),
-                label: const Text('Modifier le prix du produit (catalogue)'),
+                label: Text(tr('Modifier le prix du produit (catalogue)')),
               ),
               const SizedBox(height: 8),
               TextButton.icon(
@@ -380,7 +385,7 @@ class _PosScreenState extends State<PosScreen> {
                   _remove(item);
                 },
                 icon: const Icon(Icons.delete_outline),
-                label: const Text('Retirer du panier'),
+                label: Text(tr('Retirer du panier')),
               ),
             ]),
           ),
@@ -394,31 +399,32 @@ class _PosScreenState extends State<PosScreen> {
     final v = await showDialog<double>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Prix pour cette vente'),
+        title: Text(tr('Prix pour cette vente')),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           ProductHeader(article: item.article, size: 64),
           const SizedBox(height: 12),
-          Text('Prix du catalogue : ${money(item.catalogPrice)}', style: const TextStyle(color: AppColors.muted)),
+          Text(tr('Prix du catalogue : {prix}', {'prix': money(item.catalogPrice)}), style: const TextStyle(color: AppColors.muted)),
           const SizedBox(height: 12),
           TextField(
             controller: ctrl,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-                labelText: 'Prix unitaire', suffixText: item.article.unit.isEmpty ? 'DH' : 'DH / ${item.article.unit}'),
+                labelText: tr('Prix unitaire'),
+                suffixText: item.article.unit.isEmpty ? tr('DH') : tr('DH / {unite}', {'unite': item.article.unit})),
             onSubmitted: (t) => Navigator.pop(c, parseInput(t)),
           ),
         ]),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annuler')),
-          FilledButton(onPressed: () => Navigator.pop(c, parseInput(ctrl.text)), child: const Text('Appliquer')),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+          FilledButton(onPressed: () => Navigator.pop(c, parseInput(ctrl.text)), child: Text(tr('Appliquer'))),
         ],
       ),
     );
     ctrl.dispose();
     if (v == null) return null;
     if (v <= 0) {
-      if (mounted) showInfo(context, 'Le prix doit être supérieur à 0.');
+      if (mounted) showInfo(context, tr('Le prix doit être supérieur à 0.'));
       return null;
     }
     return round2(v);
@@ -430,9 +436,9 @@ class _PosScreenState extends State<PosScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
-        content: Text('« ${item.article.articleName} » retiré du panier.'),
+        content: Text(tr('« {article} » retiré du panier.', {'article': item.article.articleName})),
         action: SnackBarAction(
-          label: 'ANNULER',
+          label: tr('ANNULER'),
           onPressed: () => setState(() => _cart.insert(index.clamp(0, _cart.length), item)),
         ),
       ));
@@ -440,7 +446,7 @@ class _PosScreenState extends State<PosScreen> {
 
   Future<void> _clearCart() async {
     if (_cart.isEmpty) return;
-    if (await confirm(context, 'Vider le panier', 'Retirer tous les articles du panier ?', ok: 'Vider', danger: true)) {
+    if (await confirm(context, tr('Vider le panier'), tr('Retirer tous les articles du panier ?'), ok: tr('Vider'), danger: true)) {
       setState(_cart.clear);
     }
   }
@@ -460,8 +466,8 @@ class _PosScreenState extends State<PosScreen> {
   Widget build(BuildContext context) {
     final query = _search.text.trim();
     return Scaffold(
-      appBar: darkAppBar('Caisse', actions: [
-        if (_cart.isNotEmpty) IconButton(tooltip: 'Vider le panier', icon: const Icon(Icons.delete_sweep_outlined), onPressed: _clearCart),
+      appBar: darkAppBar(tr('Caisse'), actions: [
+        if (_cart.isNotEmpty) IconButton(tooltip: tr('Vider le panier'), icon: const Icon(Icons.delete_sweep_outlined), onPressed: _clearCart),
       ]),
       body: Column(children: [
         Container(
@@ -474,7 +480,7 @@ class _PosScreenState extends State<PosScreen> {
                 focusNode: _focus,
                 textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
-                  hintText: 'Code-barres, nom FR ou عربي',
+                  hintText: tr('Code-barres, nom FR ou عربي'),
                   prefixIcon: const Icon(Icons.search),
                   fillColor: AppColors.surface,
                   isDense: true,
@@ -511,10 +517,10 @@ class _PosScreenState extends State<PosScreen> {
       if (_searching) return const SkeletonList(count: 6);
       return EmptyState(
         icon: Icons.search_off,
-        title: 'Aucun article',
+        title: tr('Aucun article'),
         message: _looksLikeBarcode(query)
-            ? 'Aucun article pour « $query ». Appuyez sur Entrée pour rechercher le code exact.'
-            : 'Aucun article ne correspond à « $query ».',
+            ? tr('Aucun article pour « {q} ». Appuyez sur Entrée pour rechercher le code exact.', {'q': query})
+            : tr('Aucun article ne correspond à « {q} ».', {'q': query}),
       );
     }
     return ListView.separated(
@@ -560,12 +566,12 @@ class _PosScreenState extends State<PosScreen> {
         const SizedBox(height: 40),
         EmptyState(
           icon: Icons.shopping_cart_outlined,
-          title: 'Panier vide',
-          message: 'Scannez un article avec la caméra ou recherchez-le par code-barres, nom français ou arabe.',
+          title: tr('Panier vide'),
+          message: tr('Scannez un article avec la caméra ou recherchez-le par code-barres, nom français ou arabe.'),
           action: FilledButton.icon(
             onPressed: _scan,
             icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Scanner un article'),
+            label: Text(tr('Scanner un article')),
           ),
         ),
       ]);
@@ -575,10 +581,10 @@ class _PosScreenState extends State<PosScreen> {
       itemCount: _cart.length + 1,
       itemBuilder: (_, i) {
         if (i == _cart.length) {
-          return const Padding(
-            padding: EdgeInsets.only(top: 6),
-            child: Text('Glissez à gauche pour retirer · à droite pour le détail et le prix.',
-                textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 12)),
+          return Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(tr('Glissez à gauche pour retirer · à droite pour le détail et le prix.'),
+                textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted, fontSize: 12)),
           );
         }
         final item = _cart[i];
@@ -597,23 +603,23 @@ class _PosScreenState extends State<PosScreen> {
           background: Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            alignment: Alignment.centerLeft,
+            alignment: AlignmentDirectional.centerStart,
             decoration: BoxDecoration(color: AppColors.info, borderRadius: BorderRadius.circular(18)),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.info_outline, color: Colors.white),
-              SizedBox(width: 6),
-              Text('Détail · prix', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.info_outline, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(tr('Détail · prix'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
             ]),
           ),
           secondaryBackground: Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            alignment: Alignment.centerRight,
+            alignment: AlignmentDirectional.centerEnd,
             decoration: BoxDecoration(color: AppColors.danger, borderRadius: BorderRadius.circular(18)),
-            child: const Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.delete_outline, color: Colors.white),
-              SizedBox(width: 6),
-              Text('Retirer', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.delete_outline, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(tr('Retirer'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
             ]),
           ),
           child: _cartLine(item),
@@ -640,7 +646,8 @@ class _PosScreenState extends State<PosScreen> {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(a.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-              if (ar != null) Align(alignment: Alignment.centerLeft, child: ArabicText(ar, maxLines: 1)),
+              if (ar != null)
+                Text(ar, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
               const SizedBox(height: 2),
               Wrap(crossAxisAlignment: WrapCrossAlignment.center, spacing: 6, children: [
                 if (item.priceChanged)
@@ -651,8 +658,8 @@ class _PosScreenState extends State<PosScreen> {
                         color: item.priceChanged ? AppColors.warning : AppColors.muted,
                         fontSize: 12.5,
                         fontWeight: item.priceChanged ? FontWeight.w700 : FontWeight.w400)),
-                if (item.priceChanged) const Badge2('Prix modifié', color: AppColors.warning),
-                if (!item.priceChanged && a.hasPromo) const Badge2('Promo', color: AppColors.primary),
+                if (item.priceChanged) Badge2(tr('Prix modifié'), color: AppColors.warning),
+                if (!item.priceChanged && a.hasPromo) Badge2(tr('Promo'), color: AppColors.primary),
               ]),
             ]),
           ),
@@ -692,11 +699,13 @@ class _PosScreenState extends State<PosScreen> {
         child: Row(children: [
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-              Text('${_cart.length} article${_cart.length > 1 ? 's' : ''} · ${qty(_count)} unité${_count > 1 ? 's' : ''}',
+              Text(
+                  '${_cart.length > 1 ? tr('{n} articles', {'n': _cart.length}) : tr('{n} article', {'n': _cart.length})} · '
+                  '${_count > 1 ? tr('{n} unités', {'n': qty(_count)}) : tr('{n} unité', {'n': qty(_count)})}',
                   style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
               FittedBox(
                 fit: BoxFit.scaleDown,
-                alignment: Alignment.centerLeft,
+                alignment: AlignmentDirectional.centerStart,
                 child: Text(money(_total), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
               ),
             ]),
@@ -705,7 +714,7 @@ class _PosScreenState extends State<PosScreen> {
             style: FilledButton.styleFrom(minimumSize: const Size(150, 54)),
             onPressed: _checkout,
             icon: const Icon(Icons.payments_outlined),
-            label: const Text('Encaisser'),
+            label: Text(tr('Encaisser')),
           ),
         ]),
       ),

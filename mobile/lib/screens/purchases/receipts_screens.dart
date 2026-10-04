@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
@@ -29,7 +30,7 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
-      appBar: darkAppBar('Bons de réception', subtitle: widget.supplierName),
+      appBar: darkAppBar(tr('Bons de réception'), subtitle: widget.supplierName),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'receipt-add',
         onPressed: () async {
@@ -37,15 +38,15 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
           _list.currentState?.reload();
         },
         icon: const Icon(Icons.add),
-        label: const Text('Réception'),
+        label: Text(tr('Réception')),
       ),
       body: PagedList<Json>(
         key: _list,
-        searchHint: 'N° de bon, BL fournisseur…',
+        searchHint: tr('N° de bon, BL fournisseur…'),
         emptyIcon: Icons.move_to_inbox_outlined,
-        emptyTitle: 'Aucun bon de réception',
+        emptyTitle: tr('Aucun bon de réception'),
         filters: FilterChips<bool>(
-          options: const [(false, 'Tous'), (true, 'Non soldés')],
+          options: [(false, tr('Tous')), (true, tr('Non soldés'))],
           value: _unpaid,
           onChanged: (v) {
             setState(() => _unpaid = v ?? false);
@@ -56,9 +57,9 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
           final s = raw.obj('stats');
           if (s == null) return null;
           return StatsRow(children: [
-            MiniStat(label: 'Ce mois', value: qty(s['mois_nombre'])),
-            MiniStat(label: 'Montant du mois', value: moneyShort(s['mois_montant'])),
-            MiniStat(label: 'Crédit total', value: moneyShort(s['credit_total']), color: AppColors.danger),
+            MiniStat(label: tr('Ce mois'), value: qty(s['mois_nombre'])),
+            MiniStat(label: tr('Montant du mois'), value: moneyShort(s['mois_montant'])),
+            MiniStat(label: tr('Crédit total'), value: moneyShort(s['credit_total']), color: AppColors.danger),
           ]);
         },
         fetch: (page, q) => api.page('achats/receptions', (j) => j,
@@ -78,7 +79,7 @@ class _ReceiptsScreenState extends State<ReceiptsScreen> {
             ),
             trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text(moneyShort(r['total']), style: const TextStyle(fontWeight: FontWeight.w800)),
-              Text(reste > 0 ? 'Reste ${money(reste)}' : 'Soldé',
+              Text(reste > 0 ? tr('Reste {montant}', {'montant': money(reste)}) : tr('Soldé'),
                   style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: reste > 0 ? AppColors.warning : AppColors.success)),
             ]),
             onTap: () async {
@@ -101,7 +102,7 @@ class ReceiptDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar('Bon de réception'),
+      appBar: darkAppBar(tr('Bon de réception')),
       body: AsyncView<Json>(
         load: () async => (await context.api.get('achats/receptions/$receiptId') as Map).cast<String, dynamic>(),
         builder: (context, r, reload) {
@@ -117,7 +118,7 @@ class ReceiptDetailScreen extends StatelessWidget {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Row(children: [
                     Expanded(child: Text(r.str('numero'), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800))),
-                    Badge2(reste > 0 ? 'Non soldé' : 'Soldé', color: reste > 0 ? const Color(0xFFFBBF24) : const Color(0xFF86EFAC)),
+                    Badge2(reste > 0 ? tr('Non soldé') : tr('Soldé'), color: reste > 0 ? const Color(0xFFFBBF24) : const Color(0xFF86EFAC)),
                   ]),
                   const SizedBox(height: 4),
                   Text(f?.str('nom') ?? '—', style: const TextStyle(color: Colors.white70, fontSize: 15)),
@@ -132,29 +133,29 @@ class ReceiptDetailScreen extends StatelessWidget {
                     if (await paySupplier(context, f, reception: r)) reload();
                   },
                   icon: const Icon(Icons.payments_outlined),
-                  label: Text('Régler le reste (${money(reste)})'),
+                  label: Text(tr('Régler le reste ({montant})', {'montant': money(reste)})),
                 ),
               ],
               const SizedBox(height: 14),
-              SectionCard(title: 'Informations', icon: Icons.info_outline, children: [
-                InfoRow('Date de réception', date(r['date_reception'])),
-                InfoRow('BL fournisseur', r.str('reference_fournisseur')),
+              SectionCard(title: tr('Informations'), icon: Icons.info_outline, children: [
+                InfoRow(tr('Date de réception'), date(r['date_reception'])),
+                InfoRow(tr('BL fournisseur'), r.str('reference_fournisseur')),
                 if (r.obj('commande') != null)
-                  InfoRow('Bon de commande', '',
+                  InfoRow(tr('Bon de commande'), '',
                       valueWidget: Align(
-                        alignment: Alignment.centerRight,
+                        alignment: AlignmentDirectional.centerEnd,
                         child: InkWell(
                           onTap: () => context.push(OrderDetailScreen(orderId: r.obj('commande')!.integer('id'))),
                           child: Text(r.obj('commande')!.str('numero'),
                               style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary)),
                         ),
                       )),
-                InfoRow('Reçu par', r.obj('utilisateur')?.str('nom') ?? ''),
-                if (r.strOrNull('note') != null) InfoRow('Note', r.str('note')),
+                InfoRow(tr('Reçu par'), r.obj('utilisateur')?.str('nom') ?? ''),
+                if (r.strOrNull('note') != null) InfoRow(tr('Note'), r.str('note')),
               ]),
               const SizedBox(height: 14),
               SectionCard(
-                title: 'Articles reçus (${lignes.length})',
+                title: tr('Articles reçus ({n})', {'n': lignes.length}),
                 icon: Icons.inventory_2_outlined,
                 padding: const EdgeInsets.fromLTRB(0, 14, 0, 6),
                 children: [
@@ -166,10 +167,10 @@ class ReceiptDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               SectionCard(children: [
-                TotalLine('Total', money(r['total']), bold: true),
-                TotalLine('Payé${r.strOrNull('mode_paiement') != null ? ' (${paymentModeLabel(r.str('mode_paiement'))})' : ''}',
+                TotalLine(tr('Total'), money(r['total']), bold: true),
+                TotalLine(r.strOrNull('mode_paiement') != null ? tr('Payé ({mode})', {'mode': paymentModeLabel(r.str('mode_paiement'))}) : tr('Payé'),
                     money(r['montant_paye']), color: AppColors.success),
-                TotalLine('Reste (crédit fournisseur)', money(reste), bold: true, color: reste > 0 ? AppColors.warning : AppColors.success),
+                TotalLine(tr('Reste (crédit fournisseur)'), money(reste), bold: true, color: reste > 0 ? AppColors.warning : AppColors.success),
               ]),
             ]),
           );
@@ -190,7 +191,7 @@ class ReceiptDetailScreen extends StatelessWidget {
             Text(a.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
             Text('${qty(l['quantite'], a.unit)} × ${money(l['prix_achat'])}', style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
             if (l.dbl('prix_vente') > 0)
-              Text('Prix de vente : ${money(l['prix_vente'])}', style: const TextStyle(color: AppColors.info, fontSize: 12)),
+              Text(tr('Prix de vente : {prix}', {'prix': money(l['prix_vente'])}), style: const TextStyle(color: AppColors.info, fontSize: 12)),
           ]),
         ),
         Text(money(l.dbl('quantite') * l.dbl('prix_achat')), style: const TextStyle(fontWeight: FontWeight.w800)),

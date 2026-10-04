@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/delete_helper.dart';
@@ -30,7 +31,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
-      appBar: darkAppBar('Bons de commande', subtitle: widget.supplierName),
+      appBar: darkAppBar(tr('Bons de commande'), subtitle: widget.supplierName),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'order-add',
         onPressed: () async {
@@ -38,21 +39,21 @@ class _OrdersScreenState extends State<OrdersScreen> {
           _list.currentState?.reload();
         },
         icon: const Icon(Icons.add),
-        label: const Text('Commande'),
+        label: Text(tr('Commande')),
       ),
       body: PagedList<Json>(
         key: _list,
-        searchHint: 'N° de bon, fournisseur…',
+        searchHint: tr('N° de bon, fournisseur…'),
         emptyIcon: Icons.receipt_long_outlined,
-        emptyTitle: 'Aucun bon de commande',
+        emptyTitle: tr('Aucun bon de commande'),
         filters: FilterChips<String>(
-          options: const [
-            (null, 'Tous'),
-            ('brouillon', 'Brouillons'),
-            ('confirmee', 'Confirmées'),
-            ('partielle', 'Partielles'),
-            ('recue', 'Reçues'),
-            ('annulee', 'Annulées'),
+          options: [
+            (null, tr('Tous')),
+            ('brouillon', tr('Brouillons')),
+            ('confirmee', tr('Confirmées')),
+            ('partielle', tr('Partielles')),
+            ('recue', tr('Reçues')),
+            ('annulee', tr('Annulées')),
           ],
           value: _statut,
           onChanged: (v) {
@@ -67,9 +68,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
           final n = open.fold<int>(0, (t, k) => t + (s.obj(k)?.integer('n') ?? 0));
           final m = open.fold<double>(0, (t, k) => t + (s.obj(k)?.dbl('montant') ?? 0));
           return StatsRow(children: [
-            MiniStat(label: 'En cours', value: qty(n), color: AppColors.info),
-            MiniStat(label: 'Montant en cours', value: moneyShort(m)),
-            MiniStat(label: 'Reçues', value: qty(s.obj('recue')?.integer('n') ?? 0), color: AppColors.success),
+            MiniStat(label: tr('En cours'), value: qty(n), color: AppColors.info),
+            MiniStat(label: tr('Montant en cours'), value: moneyShort(m)),
+            MiniStat(label: tr('Reçues'), value: qty(s.obj('recue')?.integer('n') ?? 0), color: AppColors.success),
           ]);
         },
         fetch: (page, q) => api.page('achats/commandes', (j) => j,
@@ -84,7 +85,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             [
               o.obj('fournisseur')?.str('nom') ?? '—',
               date(o['date_commande']),
-              '${o.integer('lignes_count')} ligne${o.integer('lignes_count') > 1 ? 's' : ''}',
+              o.integer('lignes_count') > 1 ? tr('{n} lignes', {'n': o.integer('lignes_count')}) : tr('{n} ligne', {'n': o.integer('lignes_count')}),
             ].join(' · '),
             style: const TextStyle(fontSize: 12.5),
           ),
@@ -114,10 +115,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   Future<void> _setStatus(String statut, String label) async {
     final api = context.api;
-    final ok = await confirm(context, label, 'Confirmer : $label ?', ok: label, danger: statut == 'annulee');
+    final ok = await confirm(context, label, tr('Confirmer : {action} ?', {'action': label}), ok: label, danger: statut == 'annulee');
     if (!ok || !mounted) return;
     final res = await runBusy(context, () => api.post('achats/commandes/${widget.orderId}/statut', {'statut': statut}),
-        success: 'Statut mis à jour.');
+        success: tr('Statut mis à jour.'));
     if (res != null && mounted) _view.currentState?.reload();
   }
 
@@ -125,10 +126,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     final api = context.api;
     final done = await deleteWithFallback(
       context,
-      what: 'le bon de commande ${o.str('numero')}',
-      confirmMessage: 'Le brouillon ${o.str('numero')} sera supprimé définitivement.',
+      what: tr('le bon de commande {numero}', {'numero': o.str('numero')}),
+      confirmMessage: tr('Le brouillon {numero} sera supprimé définitivement.', {'numero': o.str('numero')}),
       delete: () => api.delete('achats/commandes/${widget.orderId}'),
-      success: 'Bon de commande supprimé.',
+      success: tr('Bon de commande supprimé.'),
     );
     if (done && mounted) Navigator.pop(context, true);
   }
@@ -136,7 +137,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar('Bon de commande'),
+      appBar: darkAppBar(tr('Bon de commande')),
       body: AsyncView<Json>(
         key: _view,
         load: () async => (await context.api.get('achats/commandes/${widget.orderId}') as Map).cast<String, dynamic>(),
@@ -175,16 +176,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     ]),
                   ),
                   const SizedBox(height: 14),
-                  SectionCard(title: 'Informations', icon: Icons.info_outline, children: [
-                    InfoRow('Date de commande', date(o['date_commande'])),
-                    InfoRow('Livraison prévue', o['date_prevue'] == null ? '' : date(o['date_prevue'])),
-                    if (o['date_reception'] != null) InfoRow('Dernière réception', date(o['date_reception'])),
-                    InfoRow('Créé par', o.obj('utilisateur')?.str('nom') ?? ''),
-                    if (o.strOrNull('note') != null) InfoRow('Note', o.str('note')),
+                  SectionCard(title: tr('Informations'), icon: Icons.info_outline, children: [
+                    InfoRow(tr('Date de commande'), date(o['date_commande'])),
+                    InfoRow(tr('Livraison prévue'), o['date_prevue'] == null ? '' : date(o['date_prevue'])),
+                    if (o['date_reception'] != null) InfoRow(tr('Dernière réception'), date(o['date_reception'])),
+                    InfoRow(tr('Créé par'), o.obj('utilisateur')?.str('nom') ?? ''),
+                    if (o.strOrNull('note') != null) InfoRow(tr('Note'), o.str('note')),
                   ]),
                   const SizedBox(height: 14),
                   SectionCard(
-                    title: 'Lignes (${lignes.length})',
+                    title: tr('Lignes ({n})', {'n': lignes.length}),
                     icon: Icons.list_alt,
                     padding: const EdgeInsets.fromLTRB(0, 14, 0, 6),
                     children: [
@@ -197,7 +198,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   if (receptions.isNotEmpty) ...[
                     const SizedBox(height: 14),
                     SectionCard(
-                      title: 'Réceptions',
+                      title: tr('Réceptions'),
                       icon: Icons.move_to_inbox_outlined,
                       padding: const EdgeInsets.fromLTRB(0, 14, 0, 6),
                       children: [
@@ -222,49 +223,49 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           if (ok == true) reload();
                         },
                         icon: const Icon(Icons.edit_outlined),
-                        label: const Text('Modifier'),
+                        label: Text(tr('Modifier')),
                       ),
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
-                        onPressed: () => _setStatus('annulee', 'Annuler la commande'),
+                        onPressed: () => _setStatus('annulee', tr('Annuler la commande')),
                         icon: const Icon(Icons.block),
-                        label: const Text('Annuler'),
+                        label: Text(tr('Annuler')),
                       ),
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
                         onPressed: () => _delete(o),
                         icon: const Icon(Icons.delete_outline),
-                        label: const Text('Supprimer'),
+                        label: Text(tr('Supprimer')),
                       ),
                     ]),
                   if (statut == 'confirmee' && nothingReceived)
                     Wrap(spacing: 10, runSpacing: 10, children: [
                       OutlinedButton.icon(
-                        onPressed: () => _setStatus('brouillon', 'Remettre en brouillon'),
+                        onPressed: () => _setStatus('brouillon', tr('Remettre en brouillon')),
                         icon: const Icon(Icons.undo),
-                        label: const Text('Remettre en brouillon'),
+                        label: Text(tr('Remettre en brouillon')),
                       ),
                       OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
-                        onPressed: () => _setStatus('annulee', 'Annuler la commande'),
+                        onPressed: () => _setStatus('annulee', tr('Annuler la commande')),
                         icon: const Icon(Icons.block),
-                        label: const Text('Annuler'),
+                        label: Text(tr('Annuler')),
                       ),
                     ]),
                   if (statut == 'confirmee' && nothingReceived)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 8),
-                      child: Text('Pour modifier les lignes, remettez d’abord la commande en brouillon.',
-                          style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(tr('Pour modifier les lignes, remettez d’abord la commande en brouillon.'),
+                          style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
                     ),
                 ]),
               ),
             ),
             if (statut == 'brouillon')
-              BottomAction(label: 'Confirmer la commande', icon: Icons.verified_outlined, onPressed: () => _setStatus('confirmee', 'Confirmer')),
+              BottomAction(label: tr('Confirmer la commande'), icon: Icons.verified_outlined, onPressed: () => _setStatus('confirmee', tr('Confirmer'))),
             if (canReceive)
               BottomAction(
-                label: 'Réceptionner',
+                label: tr('Réceptionner'),
                 icon: Icons.move_to_inbox_outlined,
                 onPressed: () async {
                   final ok = await context.push<bool>(ReceiptForm(order: o));
@@ -306,7 +307,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Text('Reçu ${qty(r)}/${qty(q)}', style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                  Text(tr('Reçu {recu}/{total}', {'recu': qty(r), 'total': qty(q)}), style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
                 ]),
               ),
           ]),

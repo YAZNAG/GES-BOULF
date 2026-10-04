@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
+import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/pickers.dart';
@@ -107,7 +109,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
         'prix_achat': parseInput(_prixAchat.text),
       });
       if (!mounted) return;
-      showSuccess(context, 'Article ajouté au catalogue.');
+      showSuccess(context, tr('Article ajouté au catalogue.'));
       Navigator.pop(context, (created as Map).cast<String, dynamic>());
     } catch (e) {
       if (mounted) showError(context, e);
@@ -117,24 +119,24 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
   }
 
   String? _price(String? v, {bool required = false}) {
-    if (v == null || v.trim().isEmpty) return required ? 'Indiquez le prix de vente.' : null;
+    if (v == null || v.trim().isEmpty) return required ? tr('Indiquez le prix de vente.') : null;
     final n = parseInput(v);
-    if (n == null || n < 0 || (required && n == 0)) return 'Prix invalide.';
+    if (n == null || n < 0 || (required && n == 0)) return tr('Prix invalide.');
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar('Nouveau produit'),
+      appBar: darkAppBar(tr('Nouveau produit')),
       body: _loading
           ? Center(
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 const CircularProgressIndicator(),
                 const SizedBox(height: 18),
-                const Text('Recherche du produit…', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                Text(tr('Recherche du produit…'), style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                 const SizedBox(height: 6),
-                Text('Code ${widget.code}', style: const TextStyle(color: AppColors.muted)),
+                Text(tr('Code {code}', {'code': widget.code}), style: const TextStyle(color: AppColors.muted)),
               ]),
             )
           : Form(
@@ -153,10 +155,14 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                     Expanded(
                       child: Text(
                         _trouve
-                            ? 'Produit absent du magasin : fiche préparée automatiquement'
-                                '${_source != null ? ' ($_source${_ia ? ' + assistant IA' : ''})' : _ia ? ' (assistant IA)' : ''}. '
-                                'Vérifiez puis saisissez le prix de vente.'
-                            : 'Produit inconnu des bases ouvertes. Saisissez son nom, sa catégorie et son prix de vente.',
+                            ? tr('Produit absent du magasin : fiche préparée automatiquement{source}. Vérifiez puis saisissez le prix de vente.', {
+                                'source': _source != null
+                                    ? (_ia ? tr(' ({source} + assistant IA)', {'source': _source}) : ' ($_source)')
+                                    : _ia
+                                        ? tr(' (assistant IA)')
+                                        : '',
+                              })
+                            : tr('Produit inconnu des bases ouvertes. Saisissez son nom, sa catégorie et son prix de vente.'),
                         style: const TextStyle(fontSize: 13.5, height: 1.35),
                       ),
                     ),
@@ -187,23 +193,24 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                   focusNode: _venteFocus,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-                  decoration: const InputDecoration(labelText: 'Prix de vente *', suffixText: 'DH', prefixIcon: Icon(Icons.sell_outlined)),
+                  decoration: InputDecoration(labelText: tr('Prix de vente *'), suffixText: tr('DH'), prefixIcon: const Icon(Icons.sell_outlined)),
                   validator: (v) => _price(v, required: true),
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _prixAchat,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(labelText: 'Prix d’achat (facultatif)', suffixText: 'DH', prefixIcon: Icon(Icons.shopping_bag_outlined)),
+                  decoration: InputDecoration(labelText: tr('Prix d’achat (facultatif)'), suffixText: tr('DH'), prefixIcon: const Icon(Icons.shopping_bag_outlined)),
                   validator: _price,
                 ),
                 const SizedBox(height: 20),
-                const GroupLabel('Fiche produit'),
+                GroupLabel(tr('Fiche produit')),
                 TextFormField(
                   controller: _nameFr,
                   textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(labelText: 'Nom en français *'),
-                  validator: (v) => (v == null || v.trim().length < 2) ? 'Indiquez le nom du produit.' : null,
+                  textDirection: TextDirection.ltr,
+                  decoration: InputDecoration(labelText: tr('Nom en français *')),
+                  validator: (v) => (v == null || v.trim().length < 2) ? tr('Indiquez le nom du produit.') : null,
                 ),
                 const SizedBox(height: 12),
                 Directionality(
@@ -217,16 +224,16 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
                 TextFormField(
                   controller: _marque,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(labelText: 'Marque'),
+                  decoration: InputDecoration(labelText: tr('Marque')),
                 ),
                 const SizedBox(height: 12),
                 RefDropdown(
-                  label: 'Sous-catégorie *',
+                  label: tr('Sous-catégorie *'),
                   path: 'sous_categories',
                   value: _sousCategorie,
                   onChanged: (v) => setState(() => _sousCategorie = v),
-                  itemLabel: (j) => j.str('name_fr', j.str('nom')),
-                  validator: (v) => v == null ? 'Choisissez la sous-catégorie.' : null,
+                  itemLabel: (j) => catName(j),
+                  validator: (v) => v == null ? tr('Choisissez la sous-catégorie.') : null,
                   prefixIcon: Icons.category_outlined,
                 ),
               ]),
@@ -234,7 +241,7 @@ class _QuickAddScreenState extends State<QuickAddScreen> {
       bottomNavigationBar: _loading
           ? null
           : BottomAction(
-              label: 'Ajouter au catalogue',
+              label: tr('Ajouter au catalogue'),
               icon: Icons.add_circle_outline,
               busy: _saving,
               onPressed: _save,

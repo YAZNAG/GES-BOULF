@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/i18n.dart';
 import '../core/theme.dart';
 import 'common.dart';
 
@@ -29,7 +30,7 @@ Future<bool> showInUseDialog(
     context: context,
     builder: (c) => AlertDialog(
       icon: const Icon(Icons.link, color: AppColors.warning, size: 30),
-      title: Text(title),
+      title: Text(tr(title)),
       content: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
           Text(message),
@@ -55,19 +56,19 @@ Future<bool> showInUseDialog(
           ],
           if (canDeactivate) ...[
             const SizedBox(height: 12),
-            const Text('Désactivé, il n’apparaîtra plus dans les listes de saisie mais son historique est conservé.',
-                style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+            Text(tr('Désactivé, il n’apparaîtra plus dans les listes de saisie mais son historique est conservé.'),
+                style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
           ],
         ]),
       ),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(canDeactivate ? 'Annuler' : 'Fermer')),
+        TextButton(onPressed: () => Navigator.pop(c, false), child: Text(canDeactivate ? tr('Annuler') : tr('Fermer'))),
         if (canDeactivate)
           FilledButton.icon(
             style: FilledButton.styleFrom(backgroundColor: AppColors.warning, minimumSize: const Size(64, 42)),
             onPressed: () => Navigator.pop(c, true),
             icon: const Icon(Icons.visibility_off_outlined, size: 18),
-            label: Text(deactivateLabel),
+            label: Text(tr(deactivateLabel)),
           ),
       ],
     ),
@@ -80,7 +81,7 @@ Future<bool> runDeactivate(BuildContext context, Future<void> Function() deactiv
   final ok = await runBusy<bool>(context, () async {
     await deactivate();
     return true;
-  }, success: success);
+  }, success: tr(success));
   return ok == true;
 }
 
@@ -100,9 +101,9 @@ Future<bool> deleteWithFallback(
   if (askConfirm) {
     final ok = await confirm(
       context,
-      'Supprimer',
-      confirmMessage ?? 'Supprimer $what ? Cette action est définitive.',
-      ok: 'Supprimer',
+      tr('Supprimer'),
+      confirmMessage ?? tr('Supprimer {quoi} ? Cette action est définitive.', {'quoi': what}),
+      ok: tr('Supprimer'),
       danger: true,
     );
     if (!ok || !context.mounted) return false;
@@ -123,7 +124,7 @@ Future<bool> deleteWithFallback(
   });
   if (!context.mounted) return done == true;
   if (done == true) {
-    showSuccess(context, success);
+    showSuccess(context, tr(success));
     return true;
   }
   final e = conflict;

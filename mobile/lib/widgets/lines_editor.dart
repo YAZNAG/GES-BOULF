@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/article.dart';
 import '../core/format.dart';
+import '../core/i18n.dart';
 import '../core/theme.dart';
 import 'common.dart';
 import 'pickers.dart';
@@ -94,7 +95,7 @@ class _LinesEditorState extends State<LinesEditor> {
       context,
       MaterialPageRoute(
         builder: (_) => ScannerPage(
-          title: 'Scanner les articles',
+          title: tr('Scanner les articles'),
           onCode: (code) async {
             try {
               final a = await lookupArticle(api, code);
@@ -104,7 +105,7 @@ class _LinesEditorState extends State<LinesEditor> {
                 return null;
               }
               final line = _add(a);
-              return '${a.articleName} — quantité ${qty(line.qtyValue)}';
+              return tr('{nom} — quantité {qte}', {'nom': a.articleName, 'qte': qty(line.qtyValue)});
             } on ApiException catch (e) {
               return '!${e.message}';
             }
@@ -131,14 +132,14 @@ class _LinesEditorState extends State<LinesEditor> {
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (widget.allowAdd)
         Row(children: [
-          Expanded(child: OutlinedButton.icon(onPressed: _search, icon: const Icon(Icons.search), label: const Text('Ajouter'))),
+          Expanded(child: OutlinedButton.icon(onPressed: _search, icon: const Icon(Icons.search), label: Text(tr('Ajouter')))),
           const SizedBox(width: 10),
           Expanded(
             child: FilledButton.icon(
               style: FilledButton.styleFrom(minimumSize: const Size(64, 48)),
               onPressed: _scan,
               icon: const Icon(Icons.qr_code_scanner),
-              label: const Text('Scanner'),
+              label: Text(tr('Scanner')),
             ),
           ),
         ]),
@@ -156,10 +157,10 @@ class _LinesEditorState extends State<LinesEditor> {
             border: Border.all(color: AppColors.border),
             color: AppColors.surface,
           ),
-          child: const Column(children: [
-            Icon(Icons.playlist_add, size: 32, color: AppColors.muted),
-            SizedBox(height: 6),
-            Text('Aucune ligne. Ajoutez ou scannez des articles.', textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted)),
+          child: Column(children: [
+            const Icon(Icons.playlist_add, size: 32, color: AppColors.muted),
+            const SizedBox(height: 6),
+            Text(tr('Aucune ligne. Ajoutez ou scannez des articles.'), textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted)),
           ]),
         ),
       for (var i = 0; i < widget.lines.length; i++) _line(i, widget.lines[i]),
@@ -172,7 +173,7 @@ class _LinesEditorState extends State<LinesEditor> {
     final otherErr = widget.errors['lignes.$i.article_id']?.first;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(12, 10, 6, 12),
+      padding: const EdgeInsetsDirectional.fromSTEB(12, 10, 6, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
@@ -193,7 +194,7 @@ class _LinesEditorState extends State<LinesEditor> {
           ),
           IconButton(
             icon: const Icon(Icons.delete_outline, color: AppColors.danger),
-            tooltip: 'Retirer',
+            tooltip: tr('Retirer'),
             onPressed: () {
               widget.lines.removeAt(i).dispose();
               widget.onChanged();
@@ -210,7 +211,7 @@ class _LinesEditorState extends State<LinesEditor> {
               controller: l.quantity,
               textAlign: TextAlign.center,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: 'Quantité', errorText: qtyErr, errorMaxLines: 3, isDense: true),
+              decoration: InputDecoration(labelText: tr('Quantité'), errorText: qtyErr, errorMaxLines: 3, isDense: true),
               onChanged: (_) => widget.onChanged(),
             ),
           ),
@@ -221,7 +222,7 @@ class _LinesEditorState extends State<LinesEditor> {
             child: TextField(
               controller: l.price,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(labelText: widget.priceLabel, suffixText: 'DH', errorText: priceErr, errorMaxLines: 3, isDense: true),
+              decoration: InputDecoration(labelText: tr(widget.priceLabel), suffixText: tr('DH'), errorText: priceErr, errorMaxLines: 3, isDense: true),
               onChanged: (_) => widget.onChanged(),
             ),
           ),
@@ -235,10 +236,10 @@ class _LinesEditorState extends State<LinesEditor> {
                 controller: l.salePrice,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 decoration: InputDecoration(
-                  labelText: 'Prix de vente (facultatif)',
-                  hintText: l.article.prixVente > 0 ? 'Actuel : ${priceInput(l.article.prixVente)}' : 'Non tarifé',
+                  labelText: tr('Prix de vente (facultatif)'),
+                  hintText: l.article.prixVente > 0 ? tr('Actuel : {prix}', {'prix': priceInput(l.article.prixVente)}) : tr('Non tarifé'),
                   floatingLabelBehavior: FloatingLabelBehavior.always,
-                  suffixText: 'DH',
+                  suffixText: tr('DH'),
                   isDense: true,
                   errorText: widget.errors['lignes.$i.prix_vente']?.first,
                 ),
@@ -249,15 +250,15 @@ class _LinesEditorState extends State<LinesEditor> {
             SizedBox(
               width: 110,
               child: Text(money(l.total),
-                  textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.ink)),
+                  textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.ink)),
             ),
             const SizedBox(width: 6),
           ]),
         ] else
           Padding(
-            padding: const EdgeInsets.only(top: 6, right: 6),
-            child: Text('Total ligne : ${money(l.total)}',
-                textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.muted)),
+            padding: const EdgeInsetsDirectional.only(top: 6, end: 6),
+            child: Text(tr('Total ligne : {total}', {'total': money(l.total)}),
+                textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.muted)),
           ),
         if (otherErr != null)
           Padding(

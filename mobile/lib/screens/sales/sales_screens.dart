@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
@@ -29,14 +30,14 @@ class SaleTile extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       leading: IconSquare(credit ? Icons.schedule : Icons.receipt_long, color: credit ? AppColors.warning : AppColors.success),
-      title: Text(client ?? 'Client de passage', maxLines: 1, overflow: TextOverflow.ellipsis,
+      title: Text(client ?? tr('Client de passage'), maxLines: 1, overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontWeight: FontWeight.w700)),
       subtitle: Text(
         [
           dateTime(v['date_vente'] ?? v['created_at']),
           ?facture,
           paymentModeLabel(v.strOrNull('mode_paiement')),
-          if (v.intOrNull('items_count') != null) '${v.integer('items_count')} art.',
+          if (v.intOrNull('items_count') != null) tr('{n} art.', {'n': v.integer('items_count')}),
         ].join(' · '),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
@@ -44,7 +45,7 @@ class SaleTile extends StatelessWidget {
       ),
       trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
         Text(money(total), style: const TextStyle(fontWeight: FontWeight.w800)),
-        if (credit) Text('Reste ${money(total - paye)}', style: const TextStyle(fontSize: 11.5, color: AppColors.warning, fontWeight: FontWeight.w700)),
+        if (credit) Text(tr('Reste {montant}', {'montant': money(total - paye)}), style: const TextStyle(fontSize: 11.5, color: AppColors.warning, fontWeight: FontWeight.w700)),
       ]),
     );
   }
@@ -82,15 +83,21 @@ class _SalesScreenState extends State<SalesScreen> {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
-      appBar: darkAppBar('Ventes', subtitle: widget.clientName),
+      appBar: darkAppBar(tr('Ventes'), subtitle: widget.clientName),
       body: PagedList<Json>(
         key: _list,
-        searchHint: 'N° de facture, client…',
+        searchHint: tr('N° de facture, client…'),
         emptyIcon: Icons.receipt_long_outlined,
-        emptyTitle: 'Aucune vente',
-        emptyMessage: 'Aucune vente sur cette période.',
+        emptyTitle: tr('Aucune vente'),
+        emptyMessage: tr('Aucune vente sur cette période.'),
         filters: FilterChips<String>(
-          options: const [('today', 'Aujourd’hui'), ('week', '7 jours'), ('month', 'Ce mois'), ('all', 'Tout'), ('credit', 'À crédit')],
+          options: [
+            ('today', tr('Aujourd’hui')),
+            ('week', tr('7 jours')),
+            ('month', tr('Ce mois')),
+            ('all', tr('Tout')),
+            ('credit', tr('À crédit')),
+          ],
           value: _credit ? 'credit' : _period.name,
           onChanged: (v) {
             setState(() {
@@ -108,9 +115,9 @@ class _SalesScreenState extends State<SalesScreen> {
           final r = raw.obj('resume');
           if (r == null) return null;
           return StatsRow(children: [
-            MiniStat(label: 'Ventes', value: qty(raw['total'])),
-            MiniStat(label: 'Montant', value: moneyShort(r['montant'])),
-            MiniStat(label: 'Encaissé', value: moneyShort(r['encaisse']), color: AppColors.success),
+            MiniStat(label: tr('Ventes'), value: qty(raw['total'])),
+            MiniStat(label: tr('Montant'), value: moneyShort(r['montant'])),
+            MiniStat(label: tr('Encaissé'), value: moneyShort(r['encaisse']), color: AppColors.success),
           ]);
         },
         fetch: (page, q) => api.page('m/ventes', (j) => j, page: page, query: {
@@ -134,7 +141,7 @@ class SaleDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar('Vente n° $saleId'),
+      appBar: darkAppBar(tr('Vente n° {id}', {'id': saleId})),
       body: AsyncView<Json>(
         load: () async => (await context.api.get('m/ventes/$saleId') as Map).cast<String, dynamic>(),
         builder: (context, v, reload) {
@@ -156,11 +163,11 @@ class SaleDetailScreen extends StatelessWidget {
                   Row(children: [
                     Expanded(
                       child: Text(
-                        facture?.strOrNull('numero_facture') != null ? 'Facture ${facture!.str('numero_facture')}' : 'Vente',
+                        facture?.strOrNull('numero_facture') != null ? tr('Facture {numero}', {'numero': facture!.str('numero_facture')}) : tr('Vente'),
                         style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
                       ),
                     ),
-                    Badge2(reste > 0.009 ? (walkIn ? 'Reste dû' : 'Crédit') : 'Payée',
+                    Badge2(reste > 0.009 ? (walkIn ? tr('Reste dû') : tr('Crédit')) : tr('Payée'),
                         color: reste > 0.009 ? const Color(0xFFFBBF24) : const Color(0xFF86EFAC)),
                   ]),
                   const SizedBox(height: 6),
@@ -178,7 +185,7 @@ class SaleDetailScreen extends StatelessWidget {
                         if (await collectPassagePayment(context, v)) reload();
                       },
                       icon: const Icon(Icons.payments_outlined),
-                      label: const Text('Encaisser'),
+                      label: Text(tr('Encaisser')),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -190,22 +197,22 @@ class SaleDetailScreen extends StatelessWidget {
                       if (r != null) reload();
                     },
                     icon: const Icon(Icons.assignment_return_outlined),
-                    label: const Text('Retour'),
+                    label: Text(tr('Retour')),
                   ),
                 ),
               ]),
               const SizedBox(height: 14),
-              SectionCard(title: 'Informations', icon: Icons.info_outline, children: [
-                InfoRow('Client', client?.str('nom') ?? v.strOrNull('nom_passage') ?? 'Client de passage'),
-                if (walkIn) InfoRow('Type', 'Client de passage'),
-                if (walkIn && tel != null) InfoRow('Téléphone', tel),
-                InfoRow('Mode de paiement', paymentModeLabel(v.strOrNull('mode_paiement'))),
-                InfoRow('Créée par', v.obj('utilisateur')?.str('nom') ?? '—'),
-                if (facture != null) InfoRow('Statut facture', facture.str('statut', '—')),
+              SectionCard(title: tr('Informations'), icon: Icons.info_outline, children: [
+                InfoRow(tr('Client'), client?.str('nom') ?? v.strOrNull('nom_passage') ?? tr('Client de passage')),
+                if (walkIn) InfoRow(tr('Type'), tr('Client de passage')),
+                if (walkIn && tel != null) InfoRow(tr('Téléphone'), tel),
+                InfoRow(tr('Mode de paiement'), paymentModeLabel(v.strOrNull('mode_paiement'))),
+                InfoRow(tr('Créée par'), v.obj('utilisateur')?.str('nom') ?? '—'),
+                if (facture != null) InfoRow(tr('Statut facture'), facture.str('statut', '—')),
               ]),
               const SizedBox(height: 14),
               SectionCard(
-                title: 'Articles (${items.length})',
+                title: tr('Articles ({n})', {'n': items.length}),
                 icon: Icons.shopping_basket_outlined,
                 padding: const EdgeInsets.fromLTRB(0, 14, 0, 6),
                 children: [
@@ -217,10 +224,10 @@ class SaleDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               SectionCard(children: [
-                TotalLine('Total', money(total), bold: true),
-                TotalLine('Payé', money(paye), color: AppColors.success),
+                TotalLine(tr('Total'), money(total), bold: true),
+                TotalLine(tr('Payé'), money(paye), color: AppColors.success),
                 if (reste > 0.009)
-                  TotalLine(walkIn ? 'Reste à encaisser' : 'Reste (crédit)', money(reste),
+                  TotalLine(walkIn ? tr('Reste à encaisser') : tr('Reste (crédit)'), money(reste),
                       bold: true, color: walkIn ? AppColors.danger : AppColors.warning),
               ]),
             ]),
@@ -241,7 +248,8 @@ class SaleDetailScreen extends StatelessWidget {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(a.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
-            if (ar != null) Align(alignment: Alignment.centerLeft, child: ArabicText(ar, maxLines: 1)),
+            if (ar != null)
+              Text(ar, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
             Text('${qty(it['quantite'], a.unit)} × ${money(it['prix_unitaire'])}',
                 style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
           ]),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
@@ -47,29 +48,29 @@ class _StockScreenState extends State<StockScreen> {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
-      appBar: darkAppBar('Stock', actions: [
+      appBar: darkAppBar(tr('Stock'), actions: [
         PopupMenuButton<String>(
-          tooltip: 'Trier',
+          tooltip: tr('Trier'),
           icon: const Icon(Icons.sort),
           initialValue: _sort,
           onSelected: (v) {
             setState(() => _sort = v);
             _list.currentState?.reload();
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'nom', child: Text('Nom (A → Z)')),
-            PopupMenuItem(value: 'quantite_asc', child: Text('Quantité croissante')),
-            PopupMenuItem(value: 'quantite_desc', child: Text('Quantité décroissante')),
-            PopupMenuItem(value: 'valeur', child: Text('Valeur')),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'nom', child: Text(tr('Nom (A → Z)'))),
+            PopupMenuItem(value: 'quantite_asc', child: Text(tr('Quantité croissante'))),
+            PopupMenuItem(value: 'quantite_desc', child: Text(tr('Quantité décroissante'))),
+            PopupMenuItem(value: 'valeur', child: Text(tr('Valeur'))),
           ],
         ),
       ]),
       body: PagedList<Json>(
         key: _list,
-        searchHint: 'Code-barres, nom FR ou عربي',
+        searchHint: tr('Code-barres, nom FR ou عربي'),
         onScan: _scan,
         emptyIcon: Icons.warehouse_outlined,
-        emptyTitle: 'Aucun article',
+        emptyTitle: tr('Aucun article'),
         filters: FilterChips<String>(
           leading: [
             CategoryFilterChip(
@@ -80,7 +81,7 @@ class _StockScreenState extends State<StockScreen> {
               },
             ),
           ],
-          options: const [(null, 'Tous'), ('en_stock', 'En stock'), ('sous_seuil', 'Sous le seuil'), ('rupture', 'En rupture')],
+          options: [(null, tr('Tous')), ('en_stock', tr('En stock')), ('sous_seuil', tr('Sous le seuil')), ('rupture', tr('En rupture'))],
           value: _statut,
           onChanged: _setStatut,
         ),
@@ -89,13 +90,13 @@ class _StockScreenState extends State<StockScreen> {
           if (s == null) return null;
           return Column(children: [
             StatsRow(children: [
-              MiniStat(label: 'En stock', value: qty(s['en_stock']), color: AppColors.success, onTap: () => _setStatut('en_stock'), selected: _statut == 'en_stock'),
-              MiniStat(label: 'Sous seuil', value: qty(s['sous_seuil']), color: AppColors.warning, onTap: () => _setStatut('sous_seuil'), selected: _statut == 'sous_seuil'),
-              MiniStat(label: 'Rupture', value: qty(s['rupture']), color: AppColors.danger, onTap: () => _setStatut('rupture'), selected: _statut == 'rupture'),
+              MiniStat(label: tr('En stock'), value: qty(s['en_stock']), color: AppColors.success, onTap: () => _setStatut('en_stock'), selected: _statut == 'en_stock'),
+              MiniStat(label: tr('Sous seuil'), value: qty(s['sous_seuil']), color: AppColors.warning, onTap: () => _setStatut('sous_seuil'), selected: _statut == 'sous_seuil'),
+              MiniStat(label: tr('Rupture'), value: qty(s['rupture']), color: AppColors.danger, onTap: () => _setStatut('rupture'), selected: _statut == 'rupture'),
             ]),
             StatsRow(padding: const EdgeInsets.fromLTRB(16, 8, 16, 10), children: [
-              MiniStat(label: 'Valeur d’achat', value: moneyShort(s['valeur_achat'])),
-              MiniStat(label: 'Valeur de vente', value: moneyShort(s['valeur_vente']), color: AppColors.info),
+              MiniStat(label: tr('Valeur d’achat'), value: moneyShort(s['valeur_achat'])),
+              MiniStat(label: tr('Valeur de vente'), value: moneyShort(s['valeur_vente']), color: AppColors.info),
             ]),
           ]);
         },
@@ -122,7 +123,7 @@ class _StockScreenState extends State<StockScreen> {
                     Text(
                       [
                         if (a.barcode.isNotEmpty) a.barcode,
-                        'Seuil ${qty(min)}',
+                        tr('Seuil {qte}', {'qte': qty(min)}),
                         if (s.dbl('valeur_achat') > 0) moneyShort(s['valeur_achat']),
                       ].join(' · '),
                       style: const TextStyle(fontSize: 12, color: AppColors.muted),
@@ -134,7 +135,7 @@ class _StockScreenState extends State<StockScreen> {
                   Text(a.unit, style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
                 ]),
                 IconButton(
-                  tooltip: 'Ajuster',
+                  tooltip: tr('Ajuster'),
                   icon: const Icon(Icons.tune, size: 20),
                   onPressed: () async {
                     final res = await adjustStock(ctx,

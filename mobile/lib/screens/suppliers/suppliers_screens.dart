@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/delete_helper.dart';
@@ -31,9 +32,9 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
-      appBar: darkAppBar(widget.creditOnly ? 'Crédit fournisseurs' : 'Fournisseurs', actions: [
+      appBar: darkAppBar(widget.creditOnly ? tr('Crédit fournisseurs') : tr('Fournisseurs'), actions: [
         IconButton(
-          tooltip: 'Historique des paiements',
+          tooltip: tr('Historique des paiements'),
           icon: const Icon(Icons.history),
           onPressed: () => context.push(const SupplierPaymentsScreen()),
         ),
@@ -45,16 +46,16 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
           if (ok == true) _list.currentState?.reload();
         },
         icon: const Icon(Icons.add_business_outlined),
-        label: const Text('Fournisseur'),
+        label: Text(tr('Fournisseur')),
       ),
       body: PagedList<Json>(
         key: _list,
-        searchHint: 'Nom, téléphone, ville…',
+        searchHint: tr('Nom, téléphone, ville…'),
         emptyIcon: Icons.local_shipping_outlined,
-        emptyTitle: _credit ? 'Aucun crédit fournisseur' : 'Aucun fournisseur',
-        emptyMessage: _credit ? 'Tous les fournisseurs sont réglés.' : null,
+        emptyTitle: _credit ? tr('Aucun crédit fournisseur') : tr('Aucun fournisseur'),
+        emptyMessage: _credit ? tr('Tous les fournisseurs sont réglés.') : null,
         filters: FilterChips<bool>(
-          options: const [(false, 'Tous'), (true, 'À régler')],
+          options: [(false, tr('Tous')), (true, tr('À régler'))],
           value: _credit,
           onChanged: (v) {
             setState(() => _credit = v ?? false);
@@ -65,9 +66,9 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
           final s = raw.obj('stats');
           if (s == null) return null;
           return StatsRow(children: [
-            MiniStat(label: 'Fournisseurs', value: qty(s['total'])),
-            MiniStat(label: 'À régler', value: qty(s['avec_credit']), color: AppColors.warning),
-            MiniStat(label: 'Crédit total', value: moneyShort(s['credit_total']), color: AppColors.danger),
+            MiniStat(label: tr('Fournisseurs'), value: qty(s['total'])),
+            MiniStat(label: tr('À régler'), value: qty(s['avec_credit']), color: AppColors.warning),
+            MiniStat(label: tr('Crédit total'), value: moneyShort(s['credit_total']), color: AppColors.danger),
           ]);
         },
         fetch: (page, q) => api.page('fournisseurs', (j) => j, page: page, query: {'q': q, if (_credit) 'avec_credit': 1}),
@@ -78,20 +79,22 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
             leading: ItemThumb(label: f.str('nom'), color: f.flag('actif', true) ? AppColors.info : AppColors.muted, size: 44),
             title: Row(children: [
               Flexible(child: Text(f.str('nom'), overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
-              if (!f.flag('actif', true)) const Padding(padding: EdgeInsets.only(left: 6), child: Badge2('Inactif')),
+              if (!f.flag('actif', true)) Padding(padding: const EdgeInsetsDirectional.only(start: 6), child: Badge2(tr('Inactif'))),
             ]),
             subtitle: Text(
               [
                 ?f.strOrNull('ville'),
                 ?f.strOrNull('telephone'),
-                '${f.integer('receptions_count')} réception${f.integer('receptions_count') > 1 ? 's' : ''}',
+                f.integer('receptions_count') > 1
+                    ? tr('{n} réceptions', {'n': f.integer('receptions_count')})
+                    : tr('{n} réception', {'n': f.integer('receptions_count')}),
               ].join(' · '),
               style: const TextStyle(fontSize: 12.5),
             ),
             trailing: f.dbl('solde') > 0
                 ? Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Text(money(f['solde']), style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w800)),
-                    Text(over ? 'plafond dépassé' : 'à régler',
+                    Text(over ? tr('plafond dépassé') : tr('à régler'),
                         style: TextStyle(fontSize: 11.5, color: over ? AppColors.danger : AppColors.muted, fontWeight: over ? FontWeight.w700 : null)),
                   ])
                 : const Icon(Icons.chevron_right),
@@ -147,7 +150,7 @@ class _SupplierPaymentSheetState extends State<_SupplierPaymentSheet> {
   Future<void> _save() async {
     final v = parseInput(_amount.text);
     if (v == null || v <= 0) {
-      setState(() => _errors = {'montant': ['Saisissez un montant supérieur à 0.']});
+      setState(() => _errors = {'montant': [tr('Saisissez un montant supérieur à 0.')]});
       return;
     }
     setState(() {
@@ -165,7 +168,7 @@ class _SupplierPaymentSheetState extends State<_SupplierPaymentSheet> {
         if (widget.reception != null) 'reception_id': widget.reception!.integer('id'),
       });
       if (!mounted) return;
-      showSuccess(context, 'Paiement de ${money(v)} enregistré.');
+      showSuccess(context, tr('Paiement de {montant} enregistré.', {'montant': money(v)}));
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -185,12 +188,12 @@ class _SupplierPaymentSheetState extends State<_SupplierPaymentSheet> {
       padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 20),
       child: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-          const Text('Régler le fournisseur', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+          Text(tr('Régler le fournisseur'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(
             widget.reception != null
-                ? '${s.str('nom')} · ${widget.reception!.str('numero')} (reste ${money(widget.reception!['reste'])})'
-                : '${s.str('nom')} · crédit ${money(s['solde'])}',
+                ? '${s.str('nom')} · ${tr('{numero} (reste {montant})', {'numero': widget.reception!.str('numero'), 'montant': money(widget.reception!['reste'])})}'
+                : '${s.str('nom')} · ${tr('crédit {montant}', {'montant': money(s['solde'])})}',
             style: const TextStyle(color: AppColors.muted),
           ),
           const SizedBox(height: 16),
@@ -199,25 +202,25 @@ class _SupplierPaymentSheetState extends State<_SupplierPaymentSheet> {
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            decoration: InputDecoration(labelText: 'Montant', suffixText: 'DH', errorText: _errors['montant']?.first),
+            decoration: InputDecoration(labelText: tr('Montant'), suffixText: tr('DH'), errorText: _errors['montant']?.first),
           ),
           const SizedBox(height: 12),
           PaymentModePicker(value: _mode, modes: supplierPaymentModes, onChanged: (m) => setState(() => _mode = m)),
           const SizedBox(height: 12),
           Row(children: [
-            Expanded(child: DateField(label: 'Date', value: _date, onChanged: (v) => setState(() => _date = v))),
+            Expanded(child: DateField(label: tr('Date'), value: _date, onChanged: (v) => setState(() => _date = v))),
             const SizedBox(width: 10),
-            Expanded(child: TextField(controller: _ref, decoration: const InputDecoration(labelText: 'Référence', hintText: 'N° chèque…'))),
+            Expanded(child: TextField(controller: _ref, decoration: InputDecoration(labelText: tr('Référence'), hintText: tr('N° chèque…')))),
           ]),
           const SizedBox(height: 12),
-          TextField(controller: _note, decoration: const InputDecoration(labelText: 'Note (facultatif)')),
+          TextField(controller: _note, decoration: InputDecoration(labelText: tr('Note (facultatif)'))),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _busy ? null : _save,
             icon: _busy
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.check),
-            label: const Text('Enregistrer le paiement'),
+            label: Text(tr('Enregistrer le paiement')),
           ),
         ]),
       ),
@@ -230,17 +233,20 @@ Future<bool> cancelSupplierPayment(BuildContext context, {required int paymentId
   final api = context.api;
   final ok = await confirm(
     context,
-    'Annuler ce règlement',
-    'Le règlement de ${money(amount)}${supplierName == null ? '' : ' à $supplierName'} sera annulé : '
-        'ce montant redeviendra dû au fournisseur (son crédit augmente).',
-    ok: 'Annuler le règlement',
+    tr('Annuler ce règlement'),
+    supplierName == null
+        ? tr('Le règlement de {montant} sera annulé : ce montant redeviendra dû au fournisseur (son crédit augmente).',
+            {'montant': money(amount)})
+        : tr('Le règlement de {montant} à {fournisseur} sera annulé : ce montant redeviendra dû au fournisseur (son crédit augmente).',
+            {'montant': money(amount), 'fournisseur': supplierName}),
+    ok: tr('Annuler le règlement'),
     danger: true,
   );
   if (!ok || !context.mounted) return false;
   final res = await runBusy<bool>(context, () async {
     await api.delete('achats/paiements/$paymentId');
     return true;
-  }, success: 'Règlement annulé.');
+  }, success: tr('Règlement annulé.'));
   return res == true;
 }
 
@@ -254,16 +260,16 @@ Future<void> _toggleSupplier(BuildContext context, Json f, Future<void> Function
   final actif = f.flag('actif', true);
   final ok = await confirm(
     context,
-    actif ? 'Désactiver le fournisseur' : 'Activer le fournisseur',
+    actif ? tr('Désactiver le fournisseur') : tr('Activer le fournisseur'),
     actif
-        ? '« ${f.str('nom')} » ne sera plus proposé pour les commandes et réceptions. Son historique et son crédit sont conservés.'
-        : '« ${f.str('nom')} » sera de nouveau proposé pour les commandes et réceptions.',
-    ok: actif ? 'Désactiver' : 'Activer',
+        ? tr('« {nom} » ne sera plus proposé pour les commandes et réceptions. Son historique et son crédit sont conservés.', {'nom': f.str('nom')})
+        : tr('« {nom} » sera de nouveau proposé pour les commandes et réceptions.', {'nom': f.str('nom')}),
+    ok: actif ? tr('Désactiver') : tr('Activer'),
     danger: actif,
   );
   if (!ok || !context.mounted) return;
   final res = await runBusy(context, () => api.put('fournisseurs/${f.integer('id')}', {'actif': !actif}),
-      success: actif ? 'Fournisseur désactivé.' : 'Fournisseur activé.');
+      success: actif ? tr('Fournisseur désactivé.') : tr('Fournisseur activé.'));
   if (res != null) reload();
 }
 
@@ -273,14 +279,14 @@ Future<void> _deleteSupplier(BuildContext context, Json f, Future<void> Function
   var deleted = false;
   final changed = await deleteWithFallback(
     context,
-    what: 'le fournisseur « ${f.str('nom')} »',
+    what: tr('le fournisseur « {nom} »', {'nom': f.str('nom')}),
     delete: () async {
       await api.delete('fournisseurs/$id');
       deleted = true;
     },
     deactivate: f.flag('actif', true) ? () => api.put('fournisseurs/$id', {'actif': false}) : null,
-    success: 'Fournisseur supprimé.',
-    deactivated: 'Fournisseur désactivé.',
+    success: tr('Fournisseur supprimé.'),
+    deactivated: tr('Fournisseur désactivé.'),
   );
   if (!changed || !context.mounted) return;
   if (deleted) {
@@ -299,7 +305,7 @@ class SupplierDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar('Fiche fournisseur'),
+      appBar: darkAppBar(tr('Fiche fournisseur')),
       body: AsyncView<Json>(
         load: () async => (await context.api.get('fournisseurs/$supplierId') as Map).cast<String, dynamic>(),
         builder: (context, f, reload) {
@@ -322,17 +328,17 @@ class SupplierDetailScreen extends StatelessWidget {
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(f.str('nom'), style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800)),
-                        Text([?f.strOrNull('code'), ?f.strOrNull('ville'), if (!f.flag('actif', true)) 'Désactivé'].join(' · '),
+                        Text([?f.strOrNull('code'), ?f.strOrNull('ville'), if (!f.flag('actif', true)) tr('Désactivé')].join(' · '),
                             style: TextStyle(color: f.flag('actif', true) ? Colors.white60 : const Color(0xFFFCA5A5))),
                       ]),
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined, color: Colors.white),
-                      tooltip: 'Modifier',
+                      tooltip: tr('Modifier'),
                       onPressed: () => _editSupplier(context, f, reload),
                     ),
                     PopupMenuButton<String>(
-                      tooltip: 'Actions',
+                      tooltip: tr('Actions'),
                       icon: const Icon(Icons.more_vert, color: Colors.white),
                       onSelected: (v) => switch (v) {
                         'edit' => _editSupplier(context, f, reload),
@@ -340,26 +346,26 @@ class SupplierDetailScreen extends StatelessWidget {
                         _ => _deleteSupplier(context, f, reload),
                       },
                       itemBuilder: (_) => [
-                        const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Modifier'))),
+                        PopupMenuItem(value: 'edit', child: ListTile(leading: const Icon(Icons.edit_outlined), title: Text(tr('Modifier')))),
                         PopupMenuItem(
                           value: 'toggle',
                           child: ListTile(
                             leading: Icon(f.flag('actif', true) ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                            title: Text(f.flag('actif', true) ? 'Désactiver' : 'Activer'),
+                            title: Text(f.flag('actif', true) ? tr('Désactiver') : tr('Activer')),
                           ),
                         ),
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'delete',
                           child: ListTile(
-                            leading: Icon(Icons.delete_outline, color: AppColors.danger),
-                            title: Text('Supprimer', style: TextStyle(color: AppColors.danger)),
+                            leading: const Icon(Icons.delete_outline, color: AppColors.danger),
+                            title: Text(tr('Supprimer'), style: const TextStyle(color: AppColors.danger)),
                           ),
                         ),
                       ],
                     ),
                   ]),
                   const SizedBox(height: 16),
-                  const Text('Crédit (à régler)', style: TextStyle(color: Colors.white60, fontSize: 12.5)),
+                  Text(tr('Crédit (à régler)'), style: const TextStyle(color: Colors.white60, fontSize: 12.5)),
                   Text(money(solde),
                       style: TextStyle(color: solde > 0 ? const Color(0xFFFCA5A5) : const Color(0xFF86EFAC), fontSize: 26, fontWeight: FontWeight.w900)),
                   if (plafond != null && plafond > 0) ...[
@@ -374,7 +380,7 @@ class SupplierDetailScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text('Plafond ${money(plafond)}', style: const TextStyle(color: Colors.white60, fontSize: 12)),
+                    Text(tr('Plafond {montant}', {'montant': money(plafond)}), style: const TextStyle(color: Colors.white60, fontSize: 12)),
                   ],
                 ]),
               ),
@@ -386,7 +392,7 @@ class SupplierDetailScreen extends StatelessWidget {
                       if (await paySupplier(context, f)) reload();
                     },
                     icon: const Icon(Icons.payments_outlined),
-                    label: const Text('Régler'),
+                    label: Text(tr('Régler')),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -398,15 +404,15 @@ class SupplierDetailScreen extends StatelessWidget {
                       reload();
                     },
                     icon: const Icon(Icons.summarize_outlined),
-                    label: const Text('Relevé'),
+                    label: Text(tr('Relevé')),
                   ),
                 ),
               ]),
               const SizedBox(height: 14),
               Row(children: [
-                Expanded(child: MiniStat(label: 'Total achats', value: moneyShort(f['total_achats']))),
+                Expanded(child: MiniStat(label: tr('Total achats'), value: moneyShort(f['total_achats']))),
                 const SizedBox(width: 8),
-                Expanded(child: MiniStat(label: 'Total payé', value: moneyShort(f['total_paye']), color: AppColors.success)),
+                Expanded(child: MiniStat(label: tr('Total payé'), value: moneyShort(f['total_paye']), color: AppColors.success)),
               ]),
               const SizedBox(height: 14),
               Card(
@@ -414,7 +420,7 @@ class SupplierDetailScreen extends StatelessWidget {
                 child: Column(children: [
                   ListTile(
                     leading: const IconSquare(Icons.receipt_long_outlined, color: AppColors.info),
-                    title: const Text('Bons de commande', style: TextStyle(fontWeight: FontWeight.w600)),
+                    title: Text(tr('Bons de commande'), style: const TextStyle(fontWeight: FontWeight.w600)),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       Text(qty(f['commandes_count']), style: const TextStyle(color: AppColors.muted)),
                       const Icon(Icons.chevron_right),
@@ -424,7 +430,7 @@ class SupplierDetailScreen extends StatelessWidget {
                   const Divider(height: 1, indent: 72),
                   ListTile(
                     leading: const IconSquare(Icons.move_to_inbox_outlined, color: AppColors.success),
-                    title: const Text('Bons de réception', style: TextStyle(fontWeight: FontWeight.w600)),
+                    title: Text(tr('Bons de réception'), style: const TextStyle(fontWeight: FontWeight.w600)),
                     trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                       Text(qty(f['receptions_count']), style: const TextStyle(color: AppColors.muted)),
                       const Icon(Icons.chevron_right),
@@ -434,7 +440,7 @@ class SupplierDetailScreen extends StatelessWidget {
                   const Divider(height: 1, indent: 72),
                   ListTile(
                     leading: const IconSquare(Icons.history, color: AppColors.violet),
-                    title: const Text('Paiements', style: TextStyle(fontWeight: FontWeight.w600)),
+                    title: Text(tr('Paiements'), style: const TextStyle(fontWeight: FontWeight.w600)),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () async {
                       await context.push(SupplierPaymentsScreen(supplierId: supplierId, supplierName: f.str('nom')));
@@ -444,15 +450,16 @@ class SupplierDetailScreen extends StatelessWidget {
                 ]),
               ),
               const SizedBox(height: 14),
-              SectionCard(title: 'Coordonnées', icon: Icons.contact_phone_outlined, children: [
-                InfoRow('Contact', f.str('contact')),
-                InfoRow('Téléphone', f.str('telephone')),
-                InfoRow('E-mail', f.str('email')),
-                InfoRow('Adresse', f.str('adresse')),
-                InfoRow('ICE', f.str('ice')),
-                InfoRow('RC', f.str('rc')),
-                InfoRow('Délai de paiement', f.intOrNull('delai_paiement') == null ? '' : '${f.integer('delai_paiement')} jours'),
-                if (f.strOrNull('note') != null) InfoRow('Note', f.str('note')),
+              SectionCard(title: tr('Coordonnées'), icon: Icons.contact_phone_outlined, children: [
+                InfoRow(tr('Contact'), f.str('contact')),
+                InfoRow(tr('Téléphone'), f.str('telephone')),
+                InfoRow(tr('E-mail'), f.str('email')),
+                InfoRow(tr('Adresse'), f.str('adresse')),
+                InfoRow(tr('ICE'), f.str('ice')),
+                InfoRow(tr('RC'), f.str('rc')),
+                InfoRow(tr('Délai de paiement'),
+                    f.intOrNull('delai_paiement') == null ? '' : tr('{n} jours', {'n': f.integer('delai_paiement')})),
+                if (f.strOrNull('note') != null) InfoRow(tr('Note'), f.str('note')),
               ]),
             ]),
           );
@@ -472,7 +479,7 @@ class SupplierStatementScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar('Relevé', subtitle: name),
+      appBar: darkAppBar(tr('Relevé'), subtitle: name),
       body: AsyncView<Json>(
         load: () async => (await context.api.get('achats/fournisseurs/$supplierId/releve') as Map).cast<String, dynamic>(),
         builder: (context, d, reload) {
@@ -484,13 +491,13 @@ class SupplierStatementScreen extends StatelessWidget {
             onRefresh: reload,
             child: ListView(padding: const EdgeInsets.only(bottom: 24), children: [
               StatsRow(children: [
-                MiniStat(label: 'Achats (débit)', value: moneyShort(debit)),
-                MiniStat(label: 'Payé (crédit)', value: moneyShort(credit), color: AppColors.success),
-                MiniStat(label: 'Solde', value: moneyShort(solde), color: solde > 0 ? AppColors.danger : AppColors.success),
+                MiniStat(label: tr('Achats (débit)'), value: moneyShort(debit)),
+                MiniStat(label: tr('Payé (crédit)'), value: moneyShort(credit), color: AppColors.success),
+                MiniStat(label: tr('Solde'), value: moneyShort(solde), color: solde > 0 ? AppColors.danger : AppColors.success),
               ]),
               const SizedBox(height: 8),
               if (lignes.isEmpty)
-                const SizedBox(height: 300, child: EmptyState(icon: Icons.summarize_outlined, title: 'Aucun mouvement'))
+                SizedBox(height: 300, child: EmptyState(icon: Icons.summarize_outlined, title: tr('Aucun mouvement')))
               else
                 for (final l in lignes.reversed)
                   Container(
@@ -510,7 +517,7 @@ class SupplierStatementScreen extends StatelessWidget {
                       ),
                       title: Text(l.str('libelle'), maxLines: 2, overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                      subtitle: Text('${date(l['date'])} · solde ${money(l['solde'])}'),
+                      subtitle: Text('${date(l['date'])} · ${tr('solde {montant}', {'montant': money(l['solde'])})}'),
                       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                         Text(
                           l.dbl('debit') > 0 ? '+ ${money(l['debit'])}' : '− ${money(l['credit'])}',
@@ -521,19 +528,19 @@ class SupplierStatementScreen extends StatelessWidget {
                         ),
                         if (l.str('type') == 'paiement' && l.intOrNull('id') != null)
                           PopupMenuButton<String>(
-                            tooltip: 'Actions',
+                            tooltip: tr('Actions'),
                             padding: EdgeInsets.zero,
                             onSelected: (_) async {
                               if (await cancelSupplierPayment(context, paymentId: l.integer('id'), amount: l['credit'], supplierName: name)) {
                                 reload();
                               }
                             },
-                            itemBuilder: (_) => const [
+                            itemBuilder: (_) => [
                               PopupMenuItem(
                                 value: 'cancel',
                                 child: ListTile(
-                                  leading: Icon(Icons.undo, color: AppColors.danger),
-                                  title: Text('Annuler ce règlement', style: TextStyle(color: AppColors.danger)),
+                                  leading: const Icon(Icons.undo, color: AppColors.danger),
+                                  title: Text(tr('Annuler ce règlement'), style: const TextStyle(color: AppColors.danger)),
                                 ),
                               ),
                             ],
@@ -560,11 +567,11 @@ class SupplierPaymentsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
-      appBar: darkAppBar('Paiements fournisseurs', subtitle: supplierName),
+      appBar: darkAppBar(tr('Paiements fournisseurs'), subtitle: supplierName),
       body: PagedList<Json>(
         showSearch: false,
         emptyIcon: Icons.payments_outlined,
-        emptyTitle: 'Aucun paiement',
+        emptyTitle: tr('Aucun paiement'),
         fetch: (page, q) => api.page('achats/paiements', (j) => j, page: page, query: {'fournisseur_id': supplierId}),
         itemBuilder: (ctx, p, reload) => ListTile(
           onLongPress: () async {
@@ -586,7 +593,7 @@ class SupplierPaymentsScreen extends StatelessWidget {
           trailing: Row(mainAxisSize: MainAxisSize.min, children: [
             Text(money(p['montant']), style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.success)),
             PopupMenuButton<String>(
-              tooltip: 'Actions',
+              tooltip: tr('Actions'),
               padding: EdgeInsets.zero,
               onSelected: (_) async {
                 if (await cancelSupplierPayment(ctx,
@@ -594,12 +601,12 @@ class SupplierPaymentsScreen extends StatelessWidget {
                   reload();
                 }
               },
-              itemBuilder: (_) => const [
+              itemBuilder: (_) => [
                 PopupMenuItem(
                   value: 'cancel',
                   child: ListTile(
-                    leading: Icon(Icons.undo, color: AppColors.danger),
-                    title: Text('Annuler ce règlement', style: TextStyle(color: AppColors.danger)),
+                    leading: const Icon(Icons.undo, color: AppColors.danger),
+                    title: Text(tr('Annuler ce règlement'), style: const TextStyle(color: AppColors.danger)),
                   ),
                 ),
               ],
@@ -662,7 +669,7 @@ class _SupplierFormState extends State<SupplierForm> {
         await context.api.put('fournisseurs/${widget.supplier!.integer('id')}', body);
       }
       if (!mounted) return;
-      showSuccess(context, widget.supplier == null ? 'Fournisseur créé.' : 'Fournisseur modifié.');
+      showSuccess(context, widget.supplier == null ? tr('Fournisseur créé.') : tr('Fournisseur modifié.'));
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -691,42 +698,42 @@ class _SupplierFormState extends State<SupplierForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar(widget.supplier == null ? 'Nouveau fournisseur' : 'Modifier le fournisseur'),
+      appBar: darkAppBar(widget.supplier == null ? tr('Nouveau fournisseur') : tr('Modifier le fournisseur')),
       body: Form(
         key: _form,
         child: ListView(padding: const EdgeInsets.all(16), children: [
-          _field('nom', 'Nom *', icon: Icons.business_outlined,
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Le nom est obligatoire.' : null),
+          _field('nom', tr('Nom *'), icon: Icons.business_outlined,
+              validator: (v) => (v == null || v.trim().isEmpty) ? tr('Le nom est obligatoire.') : null),
           Row(children: [
-            Expanded(child: _field('code', 'Code')),
+            Expanded(child: _field('code', tr('Code'))),
             const SizedBox(width: 10),
-            Expanded(child: _field('ville', 'Ville')),
+            Expanded(child: _field('ville', tr('Ville'))),
           ]),
-          _field('contact', 'Personne à contacter', icon: Icons.person_outline),
-          _field('telephone', 'Téléphone', icon: Icons.phone_outlined, type: TextInputType.phone),
-          _field('email', 'E-mail', icon: Icons.mail_outline, type: TextInputType.emailAddress),
-          _field('adresse', 'Adresse', icon: Icons.place_outlined, lines: 2),
+          _field('contact', tr('Personne à contacter'), icon: Icons.person_outline),
+          _field('telephone', tr('Téléphone'), icon: Icons.phone_outlined, type: TextInputType.phone),
+          _field('email', tr('E-mail'), icon: Icons.mail_outline, type: TextInputType.emailAddress),
+          _field('adresse', tr('Adresse'), icon: Icons.place_outlined, lines: 2),
           Row(children: [
-            Expanded(child: _field('ice', 'ICE')),
+            Expanded(child: _field('ice', tr('ICE'))),
             const SizedBox(width: 10),
-            Expanded(child: _field('rc', 'RC')),
+            Expanded(child: _field('rc', tr('RC'))),
           ]),
           Row(children: [
-            Expanded(child: _field('plafond_credit', 'Plafond crédit (DH)', type: const TextInputType.numberWithOptions(decimal: true))),
+            Expanded(child: _field('plafond_credit', tr('Plafond crédit (DH)'), type: const TextInputType.numberWithOptions(decimal: true))),
             const SizedBox(width: 10),
-            Expanded(child: _field('delai_paiement', 'Délai (jours)', type: TextInputType.number)),
+            Expanded(child: _field('delai_paiement', tr('Délai (jours)'), type: TextInputType.number)),
           ]),
-          _field('note', 'Note', lines: 2),
+          _field('note', tr('Note'), lines: 2),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Fournisseur actif'),
+            title: Text(tr('Fournisseur actif')),
             value: _actif,
             activeThumbColor: AppColors.primary,
             onChanged: (v) => setState(() => _actif = v),
           ),
         ]),
       ),
-      bottomNavigationBar: BottomAction(label: 'Enregistrer', busy: _busy, onPressed: _save),
+      bottomNavigationBar: BottomAction(label: tr('Enregistrer'), busy: _busy, onPressed: _save),
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
@@ -11,9 +12,9 @@ import '../sales/sales_screens.dart';
 
 /// Mode de remboursement d'un retour client.
 String refundLabel(String? r) => switch (r) {
-      'especes' => 'Espèces',
-      'credit' => 'Déduit du crédit client',
-      'aucun' => 'Aucun remboursement',
+      'especes' => tr('Espèces'),
+      'credit' => tr('Déduit du crédit client'),
+      'aucun' => tr('Aucun remboursement'),
       null || '' => '—',
       _ => r,
     };
@@ -26,21 +27,21 @@ IconData _refundIcon(String? r) => switch (r) {
 
 /// Nom du client d'une vente (client, client de passage nommé, ou « Client de passage »).
 String _saleClient(Json? v) =>
-    v?.obj('client')?.strOrNull('nom') ?? v?.strOrNull('nom_passage') ?? 'Client de passage';
+    v?.obj('client')?.strOrNull('nom') ?? v?.strOrNull('nom_passage') ?? tr('Client de passage');
 
 /// Choix de la vente à retourner (ventes récentes, recherche par n° de facture ou client).
 Future<Json?> pickSaleForReturn(BuildContext context) {
   final api = context.api;
   return pickEntity(
     context,
-    title: 'Vente à retourner',
-    searchHint: 'N° de facture, client…',
+    title: tr('Vente à retourner'),
+    searchHint: tr('N° de facture, client…'),
     fetch: (page, q) => api.page('m/ventes', (j) => j, page: page, query: {'q': q}),
     label: (v) => _saleClient(v),
     subtitle: (v) => [
       ?v.obj('facture')?.strOrNull('numero_facture'),
       dateTime(v['date_vente'] ?? v['created_at']),
-      if (v.intOrNull('items_count') != null) '${v.integer('items_count')} art.',
+      if (v.intOrNull('items_count') != null) tr('{n} art.', {'n': v.integer('items_count')}),
     ].join(' · '),
     leading: (v) => const IconSquare(Icons.receipt_long, color: AppColors.success),
     trailing: (v) => Text(money(v['montant_total']), style: const TextStyle(fontWeight: FontWeight.w800)),
@@ -70,24 +71,24 @@ class _CustomerReturnsScreenState extends State<CustomerReturnsScreen> {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
-      appBar: darkAppBar('Retours clients'),
+      appBar: darkAppBar(tr('Retours clients')),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'customer-return-add',
         onPressed: _create,
         icon: const Icon(Icons.add),
-        label: const Text('Nouveau retour'),
+        label: Text(tr('Nouveau retour')),
       ),
       body: PagedList<Json>(
         key: _list,
-        searchHint: 'N° de retour (RC-…)',
+        searchHint: tr('N° de retour (RC-…)'),
         emptyIcon: Icons.assignment_return_outlined,
-        emptyTitle: 'Aucun retour client',
+        emptyTitle: tr('Aucun retour client'),
         headerBuilder: (context, raw) {
           final s = raw.obj('stats');
           if (s == null) return null;
           return StatsRow(children: [
-            MiniStat(label: 'Retours du mois', value: qty(s['mois_nombre'])),
-            MiniStat(label: 'Montant du mois', value: moneyShort(s['mois_montant']), color: AppColors.danger),
+            MiniStat(label: tr('Retours du mois'), value: qty(s['mois_nombre'])),
+            MiniStat(label: tr('Montant du mois'), value: moneyShort(s['mois_montant']), color: AppColors.danger),
           ]);
         },
         fetch: (page, q) => api.page('retours-clients', (j) => j, page: page, query: {'q': q}),
@@ -109,7 +110,7 @@ class _CustomerReturnsScreenState extends State<CustomerReturnsScreen> {
             ),
             trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text(money(r['montant']), style: const TextStyle(fontWeight: FontWeight.w800)),
-              Text('${qty(r['quantite'])} art.', style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
+              Text(tr('{n} art.', {'n': qty(r['quantite'])}), style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
             ]),
             onTap: () => ctx.push(CustomerReturnDetailScreen(numero: r.str('numero'))),
           );
@@ -128,7 +129,7 @@ class CustomerReturnDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar('Retour client'),
+      appBar: darkAppBar(tr('Retour client')),
       body: AsyncView<Json>(
         load: () async => (await context.api.get('retours-clients/${Uri.encodeComponent(numero)}') as Map).cast<String, dynamic>(),
         builder: (context, r, reload) {
@@ -157,27 +158,27 @@ class CustomerReturnDetailScreen extends StatelessWidget {
                 ]),
               ),
               const SizedBox(height: 14),
-              SectionCard(title: 'Informations', icon: Icons.info_outline, children: [
+              SectionCard(title: tr('Informations'), icon: Icons.info_outline, children: [
                 if (v != null)
-                  InfoRow('Vente', '',
+                  InfoRow(tr('Vente'), '',
                       valueWidget: Align(
-                        alignment: Alignment.centerRight,
+                        alignment: AlignmentDirectional.centerEnd,
                         child: InkWell(
                           onTap: () => context.push(SaleDetailScreen(saleId: v.integer('id'))),
                           child: Text(
-                            v.obj('facture')?.strOrNull('numero_facture') ?? 'Vente n° ${v.integer('id')}',
+                            v.obj('facture')?.strOrNull('numero_facture') ?? tr('Vente n° {id}', {'id': v.integer('id')}),
                             style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary),
                           ),
                         ),
                       )),
-                InfoRow('Client', _saleClient(v)),
-                InfoRow('Remboursement', refundLabel(r.strOrNull('remboursement'))),
-                InfoRow('Motif', r.str('motif')),
-                InfoRow('Enregistré par', r.obj('utilisateur')?.str('nom') ?? ''),
+                InfoRow(tr('Client'), _saleClient(v)),
+                InfoRow(tr('Remboursement'), refundLabel(r.strOrNull('remboursement'))),
+                InfoRow(tr('Motif'), r.str('motif')),
+                InfoRow(tr('Enregistré par'), r.obj('utilisateur')?.str('nom') ?? ''),
               ]),
               const SizedBox(height: 14),
               SectionCard(
-                title: 'Articles retournés (${lignes.length})',
+                title: tr('Articles retournés ({n})', {'n': lignes.length}),
                 icon: Icons.inventory_2_outlined,
                 padding: const EdgeInsets.fromLTRB(0, 14, 0, 6),
                 children: [
@@ -189,7 +190,7 @@ class CustomerReturnDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               SectionCard(children: [
-                TotalLine('Montant du retour', money(r['montant']), bold: true, color: AppColors.danger),
+                TotalLine(tr('Montant du retour'), money(r['montant']), bold: true, color: AppColors.danger),
               ]),
             ]),
           );
@@ -210,11 +211,12 @@ class CustomerReturnDetailScreen extends StatelessWidget {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(a.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
-            if (ar != null) Align(alignment: Alignment.centerLeft, child: ArabicText(ar, maxLines: 1)),
+            if (ar != null)
+              Text(ar, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
             const SizedBox(height: 3),
             Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
               Text(qty(l['quantite'], a.unit), style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
-              Badge2(enStock ? 'Remis en stock' : 'Non remis en stock', color: enStock ? AppColors.success : AppColors.muted),
+              Badge2(enStock ? tr('Remis en stock') : tr('Non remis en stock'), color: enStock ? AppColors.success : AppColors.muted),
             ]),
           ]),
         ),
@@ -313,20 +315,20 @@ class _CustomerReturnFormState extends State<CustomerReturnForm> {
 
   Future<void> _submit() async {
     if (_lines.any((l) => l.invalid)) {
-      showError(context, ApiException('Une quantité dépasse le maximum retournable.'));
+      showError(context, ApiException(tr('Une quantité dépasse le maximum retournable.')));
       return;
     }
     if (_count == 0) {
-      showError(context, ApiException('Saisissez la quantité retournée d’au moins un article.'));
+      showError(context, ApiException(tr('Saisissez la quantité retournée d’au moins un article.')));
       return;
     }
     final ok = await confirm(
       context,
-      'Valider le retour',
-      '$_count article${_count > 1 ? 's' : ''} · ${money(_total)}\n'
-          'Remboursement : ${refundLabel(_refund)}\n'
-          '${_enStock ? 'Les articles sont remis en stock.' : 'Les articles ne sont pas remis en stock.'}',
-      ok: 'Valider',
+      tr('Valider le retour'),
+      '${_count > 1 ? tr('{n} articles', {'n': _count}) : tr('{n} article', {'n': _count})} · ${money(_total)}\n'
+          '${tr('Remboursement : {mode}', {'mode': refundLabel(_refund)})}\n'
+          '${_enStock ? tr('Les articles sont remis en stock.') : tr('Les articles ne sont pas remis en stock.')}',
+      ok: tr('Valider'),
     );
     if (!ok || !mounted) return;
     setState(() => _busy = true);
@@ -344,7 +346,11 @@ class _CustomerReturnFormState extends State<CustomerReturnForm> {
       if (!mounted) return;
       final r = res is Map ? res.cast<String, dynamic>() : <String, dynamic>{};
       final numero = r.str('numero');
-      showSuccess(context, 'Retour ${numero.isEmpty ? '' : '$numero '}enregistré · ${money(r['montant'] ?? _total)}');
+      showSuccess(
+          context,
+          numero.isEmpty
+              ? tr('Retour enregistré · {montant}', {'montant': money(r['montant'] ?? _total)})
+              : tr('Retour {numero} enregistré · {montant}', {'numero': numero, 'montant': money(r['montant'] ?? _total)}));
       Navigator.pop(context, numero);
     } catch (e) {
       if (mounted) showError(context, e);
@@ -356,7 +362,8 @@ class _CustomerReturnFormState extends State<CustomerReturnForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar('Nouveau retour client', subtitle: _sale?.obj('facture')?.strOrNull('numero_facture') ?? 'Vente n° ${widget.saleId}'),
+      appBar: darkAppBar(tr('Nouveau retour client'),
+          subtitle: _sale?.obj('facture')?.strOrNull('numero_facture') ?? tr('Vente n° {id}', {'id': widget.saleId})),
       body: _loading
           ? const SkeletonList(count: 5)
           : _error != null
@@ -366,10 +373,10 @@ class _CustomerReturnFormState extends State<CustomerReturnForm> {
           ? null
           : BottomAction(
               leading: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-                Text('$_count article${_count > 1 ? 's' : ''} · à rembourser', style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                Text(_count > 1 ? tr('{n} articles · à rembourser', {'n': _count}) : tr('{n} article · à rembourser', {'n': _count}), style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
                 FittedBox(child: Text(money(_total), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18))),
               ]),
-              label: 'Valider',
+              label: tr('Valider'),
               icon: Icons.assignment_return_outlined,
               busy: _busy,
               onPressed: _submit,
@@ -393,36 +400,36 @@ class _CustomerReturnFormState extends State<CustomerReturnForm> {
             style: const TextStyle(color: Colors.white60),
           ),
           const SizedBox(height: 10),
-          Text('Total de la vente : ${money(s['montant_total'])}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          Text(tr('Total de la vente : {montant}', {'montant': money(s['montant_total'])}), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
           if (client != null && client.dbl('solde') > 0)
-            Text('Crédit client : ${money(client['solde'])}', style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 13)),
+            Text(tr('Crédit client : {montant}', {'montant': money(client['solde'])}), style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 13)),
         ]),
       ),
-      GroupLabel('Articles (${_lines.length})'),
+      GroupLabel(tr('Articles ({n})', {'n': _lines.length})),
       if (!hasReturnable)
-        const Card(
+        Card(
           child: Padding(
-            padding: EdgeInsets.all(18),
-            child: Text('Tous les articles de cette vente ont déjà été retournés.', style: TextStyle(color: AppColors.muted)),
+            padding: const EdgeInsets.all(18),
+            child: Text(tr('Tous les articles de cette vente ont déjà été retournés.'), style: const TextStyle(color: AppColors.muted)),
           ),
         ),
       for (final l in _lines) _lineCard(l),
-      const GroupLabel('Options'),
+      GroupLabel(tr('Options')),
       Card(
         child: SwitchListTile(
-          title: const Text('Remettre en stock', style: TextStyle(fontWeight: FontWeight.w700)),
-          subtitle: const Text('Désactivez si l’article est abîmé ou périmé.'),
+          title: Text(tr('Remettre en stock'), style: const TextStyle(fontWeight: FontWeight.w700)),
+          subtitle: Text(tr('Désactivez si l’article est abîmé ou périmé.')),
           value: _enStock,
           activeThumbColor: AppColors.primary,
           onChanged: (v) => setState(() => _enStock = v),
         ),
       ),
-      const GroupLabel('Remboursement'),
+      GroupLabel(tr('Remboursement')),
       Wrap(spacing: 8, runSpacing: 8, children: [
         for (final (k, label) in [
-          ('especes', 'Espèces'),
-          if (_hasClient) ('credit', 'Déduire du crédit client'),
-          ('aucun', 'Aucun'),
+          ('especes', tr('Espèces')),
+          if (_hasClient) ('credit', tr('Déduire du crédit client')),
+          ('aucun', tr('Aucun')),
         ])
           ChoiceChip(
             avatar: Icon(_refundIcon(k), size: 18, color: _refund == k ? AppColors.primary : AppColors.muted),
@@ -439,18 +446,18 @@ class _CustomerReturnFormState extends State<CustomerReturnForm> {
           ),
       ]),
       if (!_hasClient)
-        const Padding(
-          padding: EdgeInsets.only(top: 6),
-          child: Text('« Déduire du crédit » n’est possible que pour une vente à un client enregistré.',
-              style: TextStyle(color: AppColors.muted, fontSize: 12)),
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(tr('« Déduire du crédit » n’est possible que pour une vente à un client enregistré.'),
+              style: const TextStyle(color: AppColors.muted, fontSize: 12)),
         ),
       const SizedBox(height: 14),
-      TextField(controller: _motif, maxLines: 2, decoration: const InputDecoration(labelText: 'Motif (facultatif)')),
+      TextField(controller: _motif, maxLines: 2, decoration: InputDecoration(labelText: tr('Motif (facultatif)'))),
       const SizedBox(height: 14),
       Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: TotalLine(_refund == 'aucun' ? 'Valeur du retour' : 'À rembourser', money(_total), big: true, color: AppColors.danger),
+          child: TotalLine(_refund == 'aucun' ? tr('Valeur du retour') : tr('À rembourser'), money(_total), big: true, color: AppColors.danger),
         ),
       ),
     ]);
@@ -478,16 +485,17 @@ class _CustomerReturnFormState extends State<CustomerReturnForm> {
             Expanded(
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(a.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-                if (ar != null) Align(alignment: Alignment.centerLeft, child: ArabicText(ar, maxLines: 1)),
-                Text('${money(l.price)} / ${a.unit.isEmpty ? 'unité' : a.unit}', style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                if (ar != null)
+                  Text(ar, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                Text('${money(l.price)} / ${a.unit.isEmpty ? tr('unité') : a.unit}', style: const TextStyle(fontSize: 12, color: AppColors.muted)),
               ]),
             ),
           ]),
           const SizedBox(height: 8),
           Wrap(spacing: 6, runSpacing: 4, children: [
-            Badge2('Vendu ${qty(l.sold)}', color: AppColors.info),
-            if (l.alreadyReturned > 0) Badge2('Déjà retourné ${qty(l.alreadyReturned)}', color: AppColors.warning),
-            Badge2(disabled ? 'Rien à retourner' : 'Retournable ${qty(l.returnable)}', color: disabled ? AppColors.muted : AppColors.success),
+            Badge2(tr('Vendu {qte}', {'qte': qty(l.sold)}), color: AppColors.info),
+            if (l.alreadyReturned > 0) Badge2(tr('Déjà retourné {qte}', {'qte': qty(l.alreadyReturned)}), color: AppColors.warning),
+            Badge2(disabled ? tr('Rien à retourner') : tr('Retournable {qte}', {'qte': qty(l.returnable)}), color: disabled ? AppColors.muted : AppColors.success),
           ]),
           if (!disabled) ...[
             const SizedBox(height: 10),
@@ -500,9 +508,9 @@ class _CustomerReturnFormState extends State<CustomerReturnForm> {
                   textAlign: TextAlign.center,
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                   decoration: InputDecoration(
-                    labelText: 'Qté retournée',
+                    labelText: tr('Qté retournée'),
                     isDense: true,
-                    errorText: invalid ? 'Max ${qty(l.returnable)}' : null,
+                    errorText: invalid ? tr('Max {qte}', {'qte': qty(l.returnable)}) : null,
                   ),
                   onChanged: (_) => setState(() {}),
                 ),
@@ -510,13 +518,13 @@ class _CustomerReturnFormState extends State<CustomerReturnForm> {
               const SizedBox(width: 4),
               IconButton.outlined(onPressed: l.value >= l.returnable ? null : () => _step(l, 1), icon: const Icon(Icons.add)),
               const SizedBox(width: 8),
-              TextButton(onPressed: () => setState(() => l.quantity.text = qtyInput(l.returnable)), child: const Text('Tout')),
+              TextButton(onPressed: () => setState(() => l.quantity.text = qtyInput(l.returnable)), child: Text(tr('Tout'))),
             ]),
             if (l.value > 0 && !invalid)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text('Montant : ${money(l.total)}',
-                    textAlign: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.muted)),
+                child: Text(tr('Montant : {montant}', {'montant': money(l.total)}),
+                    textAlign: TextAlign.end, style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.muted)),
               ),
           ],
         ]),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/delete_helper.dart';
@@ -9,11 +10,11 @@ import '../../widgets/pickers.dart';
 import 'user_profile_screen.dart';
 
 String roleLabel(String r) => switch (r.toLowerCase()) {
-      'admin' => 'Administrateur',
-      'vendeur' => 'Vendeur',
-      'magasinier' => 'Magasinier',
-      'agent' => 'Agent',
-      'livreur' => 'Livreur',
+      'admin' => tr('Administrateur'),
+      'vendeur' => tr('Vendeur'),
+      'magasinier' => tr('Magasinier'),
+      'agent' => tr('Agent'),
+      'livreur' => tr('Livreur'),
       '' => '—',
       _ => r[0].toUpperCase() + r.substring(1),
     };
@@ -27,14 +28,14 @@ Future<bool> toggleUserActive(BuildContext context, Json u) async {
   final name = userFullName(u);
   final ok = await confirm(
     context,
-    actif ? 'Désactiver le compte' : 'Activer le compte',
-    actif ? '$name ne pourra plus se connecter.' : '$name pourra de nouveau se connecter.',
-    ok: actif ? 'Désactiver' : 'Activer',
+    actif ? tr('Désactiver le compte') : tr('Activer le compte'),
+    actif ? tr('{nom} ne pourra plus se connecter.', {'nom': name}) : tr('{nom} pourra de nouveau se connecter.', {'nom': name}),
+    ok: actif ? tr('Désactiver') : tr('Activer'),
     danger: actif,
   );
   if (!ok || !context.mounted) return false;
   final res = await runBusy(context, () => api.put('utilisateurs/${u.integer('id')}', {'actif': !actif}),
-      success: actif ? 'Compte désactivé.' : 'Compte activé.');
+      success: actif ? tr('Compte désactivé.') : tr('Compte activé.'));
   return res != null;
 }
 
@@ -46,14 +47,14 @@ Future<String?> deleteUser(BuildContext context, Json u) async {
   var deleted = false;
   final changed = await deleteWithFallback(
     context,
-    what: 'le compte de ${userFullName(u)}',
+    what: tr('le compte de {nom}', {'nom': userFullName(u)}),
     delete: () async {
       await api.delete('utilisateurs/$id');
       deleted = true;
     },
     deactivate: u.flag('actif', true) ? () => api.put('utilisateurs/$id', {'actif': false}) : null,
-    success: 'Utilisateur supprimé.',
-    deactivated: 'Compte désactivé.',
+    success: tr('Utilisateur supprimé.'),
+    deactivated: tr('Compte désactivé.'),
   );
   if (!changed) return null;
   return deleted ? 'deleted' : 'deactivated';
@@ -82,18 +83,18 @@ class _UsersScreenState extends State<UsersScreen> {
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           ListTile(title: Text(userFullName(u), style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text(u.str('email'))),
-          ListTile(leading: const Icon(Icons.person_outline), title: const Text('Voir le profil'), onTap: () => Navigator.pop(c, 'view')),
-          ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Modifier'), onTap: () => Navigator.pop(c, 'edit')),
+          ListTile(leading: const Icon(Icons.person_outline), title: Text(tr('Voir le profil')), onTap: () => Navigator.pop(c, 'view')),
+          ListTile(leading: const Icon(Icons.edit_outlined), title: Text(tr('Modifier')), onTap: () => Navigator.pop(c, 'edit')),
           if (!isMe)
             ListTile(
               leading: Icon(actif ? Icons.block : Icons.check_circle_outline),
-              title: Text(actif ? 'Désactiver le compte' : 'Activer le compte'),
+              title: Text(actif ? tr('Désactiver le compte') : tr('Activer le compte')),
               onTap: () => Navigator.pop(c, 'toggle'),
             ),
           if (!isMe)
             ListTile(
               leading: const Icon(Icons.delete_outline, color: AppColors.danger),
-              title: const Text('Supprimer', style: TextStyle(color: AppColors.danger)),
+              title: Text(tr('Supprimer'), style: const TextStyle(color: AppColors.danger)),
               onTap: () => Navigator.pop(c, 'delete'),
             ),
         ]),
@@ -119,7 +120,7 @@ class _UsersScreenState extends State<UsersScreen> {
     final api = context.api;
     final me = context.session.user?.integer('id');
     return Scaffold(
-      appBar: darkAppBar('Utilisateurs'),
+      appBar: darkAppBar(tr('Utilisateurs')),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'user-add',
         onPressed: () async {
@@ -127,13 +128,13 @@ class _UsersScreenState extends State<UsersScreen> {
           if (ok == true) _list.currentState?.reload();
         },
         icon: const Icon(Icons.person_add_alt_1),
-        label: const Text('Utilisateur'),
+        label: Text(tr('Utilisateur')),
       ),
       body: PagedList<Json>(
         key: _list,
         showSearch: false,
         emptyIcon: Icons.people_outline,
-        emptyTitle: 'Aucun utilisateur',
+        emptyTitle: tr('Aucun utilisateur'),
         fetch: (page, q) => api.page('utilisateurs', (j) => j, page: page),
         itemBuilder: (ctx, u, reload) {
           final name = [u.str('prenom'), u.str('nom')].where((e) => e.isNotEmpty).join(' ');
@@ -143,7 +144,7 @@ class _UsersScreenState extends State<UsersScreen> {
             leading: ItemThumb(label: name, color: actif ? AppColors.info : AppColors.muted, size: 44),
             title: Row(children: [
               Flexible(child: Text(name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
-              if (u.integer('id') == me) const Padding(padding: EdgeInsets.only(left: 6), child: Badge2('Vous', color: AppColors.primary)),
+              if (u.integer('id') == me) Padding(padding: const EdgeInsetsDirectional.only(start: 6), child: Badge2(tr('Vous'), color: AppColors.primary)),
             ]),
             subtitle: Text('${u.str('email')}\n${roleLabel(role)}', style: const TextStyle(fontSize: 12.5)),
             isThreeLine: true,
@@ -154,7 +155,7 @@ class _UsersScreenState extends State<UsersScreen> {
                 onChanged: u.integer('id') == me ? null : (_) => _toggle(u, reload),
               ),
               IconButton(
-                tooltip: 'Actions',
+                tooltip: tr('Actions'),
                 visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.more_vert),
                 onPressed: () => _actions(ctx, u, reload, u.integer('id') == me),
@@ -225,7 +226,7 @@ class _UserFormState extends State<UserForm> {
         await context.api.put('utilisateurs/${widget.user!.integer('id')}', body);
       }
       if (!mounted) return;
-      showSuccess(context, _isNew ? 'Utilisateur créé.' : 'Utilisateur modifié.');
+      showSuccess(context, _isNew ? tr('Utilisateur créé.') : tr('Utilisateur modifié.'));
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -241,7 +242,7 @@ class _UserFormState extends State<UserForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar(_isNew ? 'Nouvel utilisateur' : 'Modifier l’utilisateur'),
+      appBar: darkAppBar(_isNew ? tr('Nouvel utilisateur') : tr('Modifier l’utilisateur')),
       body: Form(
         key: _form,
         child: ListView(padding: const EdgeInsets.all(16), children: [
@@ -250,7 +251,7 @@ class _UserFormState extends State<UserForm> {
               child: TextFormField(
                 controller: _prenom,
                 textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(labelText: 'Prénom', errorText: _errors['prenom']?.first),
+                decoration: InputDecoration(labelText: tr('Prénom'), errorText: _errors['prenom']?.first),
               ),
             ),
             const SizedBox(width: 10),
@@ -258,8 +259,8 @@ class _UserFormState extends State<UserForm> {
               child: TextFormField(
                 controller: _nom,
                 textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(labelText: 'Nom *', errorText: _errors['nom']?.first),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Obligatoire.' : null,
+                decoration: InputDecoration(labelText: tr('Nom *'), errorText: _errors['nom']?.first),
+                validator: (v) => (v == null || v.trim().isEmpty) ? tr('Obligatoire.') : null,
               ),
             ),
           ]),
@@ -267,15 +268,16 @@ class _UserFormState extends State<UserForm> {
           TextFormField(
             controller: _email,
             keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(labelText: 'E-mail *', prefixIcon: const Icon(Icons.mail_outline), errorText: _errors['email']?.first),
-            validator: (v) => (v == null || !v.contains('@')) ? 'Adresse e-mail invalide.' : null,
+            textDirection: TextDirection.ltr,
+            decoration: InputDecoration(labelText: tr('E-mail *'), prefixIcon: const Icon(Icons.mail_outline), errorText: _errors['email']?.first),
+            validator: (v) => (v == null || !v.contains('@')) ? tr('Adresse e-mail invalide.') : null,
           ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _password,
             obscureText: _obscure,
             decoration: InputDecoration(
-              labelText: _isNew ? 'Mot de passe *' : 'Nouveau mot de passe (facultatif)',
+              labelText: _isNew ? tr('Mot de passe *') : tr('Nouveau mot de passe (facultatif)'),
               prefixIcon: const Icon(Icons.lock_outline),
               errorText: _errors['mot_de_passe']?.first,
               suffixIcon: IconButton(
@@ -284,36 +286,36 @@ class _UserFormState extends State<UserForm> {
               ),
             ),
             validator: (v) {
-              if (_isNew && (v == null || v.length < 6)) return '6 caractères minimum.';
-              if (!_isNew && v != null && v.isNotEmpty && v.length < 6) return '6 caractères minimum.';
+              if (_isNew && (v == null || v.length < 6)) return tr('6 caractères minimum.');
+              if (!_isNew && v != null && v.isNotEmpty && v.length < 6) return tr('6 caractères minimum.');
               return null;
             },
           ),
           const SizedBox(height: 12),
           RefDropdown(
-            label: 'Rôle *',
+            label: tr('Rôle *'),
             path: 'roles',
             prefixIcon: Icons.badge_outlined,
             value: _roleId,
             itemLabel: (r) => roleLabel(r.str('nom')),
             onChanged: (v) => setState(() => _roleId = v),
-            validator: (v) => v == null ? 'Choisissez un rôle.' : null,
+            validator: (v) => v == null ? tr('Choisissez un rôle.') : null,
           ),
           if (_errors['role_id'] != null)
             Padding(
-              padding: const EdgeInsets.only(top: 6, left: 12),
+              padding: const EdgeInsetsDirectional.only(top: 6, start: 12),
               child: Text(_errors['role_id']!.first, style: const TextStyle(color: AppColors.danger, fontSize: 12)),
             ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Compte actif'),
+            title: Text(tr('Compte actif')),
             value: _actif,
             activeThumbColor: AppColors.primary,
             onChanged: (v) => setState(() => _actif = v),
           ),
         ]),
       ),
-      bottomNavigationBar: BottomAction(label: 'Enregistrer', busy: _busy, onPressed: _save),
+      bottomNavigationBar: BottomAction(label: tr('Enregistrer'), busy: _busy, onPressed: _save),
     );
   }
 }

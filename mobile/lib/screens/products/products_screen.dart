@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
@@ -28,7 +29,7 @@ class _ProductsScreenState extends State<ProductsScreen> {
   CategoryFilter? _cat;
 
   Future<void> _scan() async {
-    final code = await ScannerPage.scan(context, title: 'Rechercher un article');
+    final code = await ScannerPage.scan(context, title: tr('Rechercher un article'));
     if (code == null || !mounted) return;
     final api = context.api;
     final a = await runBusy(context, () => lookupArticle(api, code));
@@ -64,34 +65,34 @@ class _ProductsScreenState extends State<ProductsScreen> {
           if (a != null) _list.currentState?.reload();
         },
         icon: const Icon(Icons.add),
-        label: const Text('Ajouter'),
+        label: Text(tr('Ajouter')),
       ),
-      appBar: darkAppBar('Produits', actions: [
+      appBar: darkAppBar(tr('Produits'), actions: [
         PopupMenuButton<String>(
-          tooltip: 'Trier',
+          tooltip: tr('Trier'),
           icon: const Icon(Icons.sort),
           initialValue: _sort,
           onSelected: (v) {
             setState(() => _sort = v);
             _list.currentState?.reload();
           },
-          itemBuilder: (_) => const [
-            PopupMenuItem(value: 'nom', child: Text('Nom (A → Z)')),
-            PopupMenuItem(value: 'recent', child: Text('Plus récents')),
-            PopupMenuItem(value: 'prix_asc', child: Text('Prix croissant')),
-            PopupMenuItem(value: 'prix_desc', child: Text('Prix décroissant')),
+          itemBuilder: (_) => [
+            PopupMenuItem(value: 'nom', child: Text(tr('Nom (A → Z)'))),
+            PopupMenuItem(value: 'recent', child: Text(tr('Plus récents'))),
+            PopupMenuItem(value: 'prix_asc', child: Text(tr('Prix croissant'))),
+            PopupMenuItem(value: 'prix_desc', child: Text(tr('Prix décroissant'))),
           ],
         ),
       ]),
       body: PagedList<Json>(
         key: _list,
-        searchHint: 'Code-barres, nom FR ou عربي',
+        searchHint: tr('Code-barres, nom FR ou عربي'),
         onScan: _scan,
         emptyIcon: Icons.inventory_2_outlined,
-        emptyTitle: 'Aucun produit',
+        emptyTitle: tr('Aucun produit'),
         filters: FilterChips<String>(
           leading: [CategoryFilterChip(value: _cat, onChanged: _setCat)],
-          options: const [(null, 'Tous'), ('actif', 'Actifs'), ('a_tarifer', 'À tarifer'), ('rupture', 'En rupture'), ('inactif', 'Inactifs')],
+          options: [(null, tr('Tous')), ('actif', tr('Actifs')), ('a_tarifer', tr('À tarifer')), ('rupture', tr('En rupture')), ('inactif', tr('Inactifs'))],
           value: _statut,
           onChanged: _setStatut,
         ),
@@ -99,10 +100,10 @@ class _ProductsScreenState extends State<ProductsScreen> {
           final s = raw.obj('stats');
           if (s == null) return null;
           return StatsRow(padding: const EdgeInsets.fromLTRB(16, 12, 16, 10), children: [
-            MiniStat(label: 'Produits', value: qty(s['total']), onTap: () => _setStatut(null), selected: _statut == null),
-            MiniStat(label: 'Actifs', value: qty(s['actifs']), color: AppColors.success, onTap: () => _setStatut('actif'), selected: _statut == 'actif'),
-            MiniStat(label: 'À tarifer', value: qty(s['a_tarifer']), color: AppColors.warning, onTap: () => _setStatut('a_tarifer'), selected: _statut == 'a_tarifer'),
-            MiniStat(label: 'Rupture', value: qty(s['rupture']), color: AppColors.danger, onTap: () => _setStatut('rupture'), selected: _statut == 'rupture'),
+            MiniStat(label: tr('Produits'), value: qty(s['total']), onTap: () => _setStatut(null), selected: _statut == null),
+            MiniStat(label: tr('Actifs'), value: qty(s['actifs']), color: AppColors.success, onTap: () => _setStatut('actif'), selected: _statut == 'actif'),
+            MiniStat(label: tr('À tarifer'), value: qty(s['a_tarifer']), color: AppColors.warning, onTap: () => _setStatut('a_tarifer'), selected: _statut == 'a_tarifer'),
+            MiniStat(label: tr('Rupture'), value: qty(s['rupture']), color: AppColors.danger, onTap: () => _setStatut('rupture'), selected: _statut == 'rupture'),
           ]);
         },
         fetch: (page, q) => api.page('articles', (j) => j, page: page, query: {

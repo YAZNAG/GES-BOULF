@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/pickers.dart';
@@ -10,9 +11,9 @@ import '../../widgets/scanner.dart';
 import '../../widgets/unknown_product.dart';
 
 String _statutLabel(String s) => switch (s) {
-      'en_cours' => 'En cours',
-      'valide' => 'Validé',
-      'annule' => 'Annulé',
+      'en_cours' => tr('En cours'),
+      'valide' => tr('Validé'),
+      'annule' => tr('Annulé'),
       _ => s,
     };
 
@@ -51,29 +52,29 @@ class _InventoriesScreenState extends State<InventoriesScreen> {
   }
 
   Future<void> _create() async {
-    final libelle = TextEditingController(text: 'Inventaire du ${date(DateTime.now().toIso8601String())}');
+    final libelle = TextEditingController(text: tr('Inventaire du {date}', {'date': date(DateTime.now().toIso8601String())}));
     int? famille;
     final ok = await showDialog<bool>(
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, set) => AlertDialog(
-          title: const Text('Nouvel inventaire'),
+          title: Text(tr('Nouvel inventaire')),
           content: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: libelle, decoration: const InputDecoration(labelText: 'Libellé')),
+            TextField(controller: libelle, decoration: InputDecoration(labelText: tr('Libellé'))),
             const SizedBox(height: 12),
             RefDropdown(
-              label: 'Périmètre',
+              label: tr('Périmètre'),
               path: 'familles',
               value: famille,
               allowNull: true,
-              nullLabel: 'Tout le magasin',
+              nullLabel: tr('Tout le magasin'),
               onChanged: (v) => set(() => famille = v),
-              itemLabel: (j) => j.str('nom_fr'),
+              itemLabel: (j) => catName(j),
             ),
           ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Annuler')),
-            FilledButton(onPressed: () => Navigator.pop(c, true), child: const Text('Commencer')),
+            TextButton(onPressed: () => Navigator.pop(c, false), child: Text(tr('Annuler'))),
+            FilledButton(onPressed: () => Navigator.pop(c, true), child: Text(tr('Commencer'))),
           ],
         ),
       ),
@@ -90,12 +91,12 @@ class _InventoriesScreenState extends State<InventoriesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar('Inventaires'),
+      appBar: darkAppBar(tr('Inventaires')),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'inv-new',
         onPressed: _create,
         icon: const Icon(Icons.fact_check_outlined),
-        label: const Text('Nouvel inventaire'),
+        label: Text(tr('Nouvel inventaire')),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -104,12 +105,12 @@ class _InventoriesScreenState extends State<InventoriesScreen> {
             : _items == null
                 ? const SkeletonList()
                 : _items!.isEmpty
-                    ? ListView(children: const [
-                        SizedBox(height: 40),
+                    ? ListView(children: [
+                        const SizedBox(height: 40),
                         EmptyState(
                           icon: Icons.fact_check_outlined,
-                          title: 'Aucun inventaire',
-                          message: 'Comptez votre stock réel : scannez les articles et l’application calcule les écarts.',
+                          title: tr('Aucun inventaire'),
+                          message: tr('Comptez votre stock réel : scannez les articles et l’application calcule les écarts.'),
                         ),
                       ])
                     : ListView.separated(
@@ -119,9 +120,8 @@ class _InventoriesScreenState extends State<InventoriesScreen> {
                         itemBuilder: (_, i) {
                           final inv = _items![i];
                           final statut = inv.str('statut');
-                          final perimetre = inv.obj('categorie')?.str('name_fr', inv.obj('categorie')!.str('nom')) ??
-                              inv.obj('famille')?.str('nom_fr') ??
-                              'Tout le magasin';
+                          final perimetreJ = inv.obj('categorie') ?? inv.obj('famille');
+                          final perimetre = perimetreJ != null ? catName(perimetreJ) : tr('Tout le magasin');
                           return Material(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
@@ -130,7 +130,7 @@ class _InventoriesScreenState extends State<InventoriesScreen> {
                               contentPadding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
                               leading: IconSquare(Icons.fact_check_outlined, color: _statutColor(statut)),
                               title: Text(inv.str('libelle'), style: const TextStyle(fontWeight: FontWeight.w700)),
-                              subtitle: Text('${inv.str('numero')} · $perimetre · ${inv.integer('lignes_count')} article(s) compté(s)'),
+                              subtitle: Text('${inv.str('numero')} · $perimetre · ${tr('{n} article(s) compté(s)', {'n': inv.integer('lignes_count')})}'),
                               trailing: Badge2(_statutLabel(statut), color: _statutColor(statut)),
                               onTap: () async {
                                 await context.push(InventoryScreen(id: inv.integer('id')));
@@ -180,7 +180,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> _scan() async {
-    final code = await ScannerPage.scan(context, title: 'Scanner l’article compté');
+    final code = await ScannerPage.scan(context, title: tr('Scanner l’article compté'));
     if (code == null || !mounted) return;
     final a = await runBusy(context, () => lookupArticle(context.api, code));
     if (!mounted) return;
@@ -190,7 +190,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   Future<void> _search() async {
-    final a = await pickProduct(context, title: 'Article compté');
+    final a = await pickProduct(context, title: tr('Article compté'));
     if (a != null && mounted) await _count(a);
   }
 
@@ -207,15 +207,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
           title: Text(article.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 17)),
           content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             if (article.stockQty != null)
-              Text('Stock théorique : ${qty(article.stockQty, article.unit)}', style: const TextStyle(color: AppColors.muted)),
+              Text(tr('Stock théorique : {qte}', {'qte': qty(article.stockQty, article.unit)}), style: const TextStyle(color: AppColors.muted)),
             if (deja != null) ...[
               const SizedBox(height: 4),
-              Text('Déjà compté : ${qty(deja, article.unit)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(tr('Déjà compté : {qte}', {'qte': qty(deja, article.unit)}), style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
               SegmentedButton<bool>(
-                segments: const [
-                  ButtonSegment(value: true, label: Text('Ajouter')),
-                  ButtonSegment(value: false, label: Text('Remplacer')),
+                segments: [
+                  ButtonSegment(value: true, label: Text(tr('Ajouter'))),
+                  ButtonSegment(value: false, label: Text(tr('Remplacer'))),
                 ],
                 selected: {add},
                 onSelectionChanged: (s) => set(() => add = s.first),
@@ -227,7 +227,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
               autofocus: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-              decoration: InputDecoration(labelText: 'Quantité comptée', suffixText: article.unit),
+              decoration: InputDecoration(labelText: tr('Quantité comptée'), suffixText: article.unit),
               onSubmitted: (t) {
                 final v = parseInput(t);
                 if (v != null && v >= 0) Navigator.pop(c, (v, add));
@@ -235,13 +235,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
             ),
           ]),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annuler')),
+            TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
             FilledButton(
               onPressed: () {
                 final v = parseInput(ctrl.text);
                 if (v != null && v >= 0) Navigator.pop(c, (v, add));
               },
-              child: const Text('Enregistrer'),
+              child: Text(tr('Enregistrer')),
             ),
           ],
         ),
@@ -259,7 +259,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
       // Enchaîner les comptages : on repropose le scan.
       if (mounted) {
         final l = (saved as Map).cast<String, dynamic>();
-        showSuccess(context, '${article.articleName} : ${qty(l['quantite_comptee'], article.unit)} (écart ${_signed(l.dbl('ecart'))})');
+        showSuccess(context, tr('{article} : {qte} (écart {ecart})',
+            {'article': article.articleName, 'qte': qty(l['quantite_comptee'], article.unit), 'ecart': _signed(l.dbl('ecart'))}));
       }
     }
   }
@@ -275,22 +276,22 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final r = _data?.obj('resume') ?? {};
     final ok = await confirm(
       context,
-      'Valider l’inventaire',
-      '${r.integer('avec_ecart')} article(s) ont un écart (valeur ${money(r['ecart_valeur'])}).\n\n'
-          'Le stock de chaque article compté sera aligné sur la quantité comptée. Les articles non comptés ne changent pas.',
-      ok: 'Valider et corriger le stock',
+      tr('Valider l’inventaire'),
+      tr('{n} article(s) ont un écart (valeur {valeur}).\n\nLe stock de chaque article compté sera aligné sur la quantité comptée. Les articles non comptés ne changent pas.',
+          {'n': r.integer('avec_ecart'), 'valeur': money(r['ecart_valeur'])}),
+      ok: tr('Valider et corriger le stock'),
     );
     if (!ok || !mounted) return;
     final res = await runBusy(context, () => context.api.post('inventaires/${widget.id}/valider'));
     if (res is Map && mounted) {
-      showSuccess(context, 'Inventaire validé : ${res['corrections']} correction(s) de stock.');
+      showSuccess(context, tr('Inventaire validé : {n} correction(s) de stock.', {'n': res['corrections']}));
       _load();
     }
   }
 
   Future<void> _cancel() async {
-    final ok = await confirm(context, 'Annuler l’inventaire', 'Les comptages seront abandonnés, le stock ne change pas.',
-        ok: 'Annuler l’inventaire', danger: true);
+    final ok = await confirm(context, tr('Annuler l’inventaire'), tr('Les comptages seront abandonnés, le stock ne change pas.'),
+        ok: tr('Annuler l’inventaire'), danger: true);
     if (!ok || !mounted) return;
     final res = await runBusy(context, () => context.api.post('inventaires/${widget.id}/annuler'));
     if (res != null && mounted) Navigator.pop(context);
@@ -302,8 +303,8 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final lignes = _data?.list('lignes') ?? [];
     final ecartValeur = r.dbl('ecart_valeur');
     return Scaffold(
-      appBar: darkAppBar(_inv.str('libelle', 'Inventaire'), subtitle: _inv.strOrNull('numero'), actions: [
-        if (_ouvert) IconButton(tooltip: 'Annuler l’inventaire', icon: const Icon(Icons.block), onPressed: _cancel),
+      appBar: darkAppBar(_inv.str('libelle', tr('Inventaire')), subtitle: _inv.strOrNull('numero'), actions: [
+        if (_ouvert) IconButton(tooltip: tr('Annuler l’inventaire'), icon: const Icon(Icons.block), onPressed: _cancel),
       ]),
       body: _error != null
           ? ErrorState(error: _error!, onRetry: _load)
@@ -313,10 +314,10 @@ class _InventoryScreenState extends State<InventoryScreen> {
                   onRefresh: _load,
                   child: ListView(padding: const EdgeInsets.fromLTRB(12, 12, 12, 110), children: [
                     StatsRow(padding: EdgeInsets.zero, children: [
-                      MiniStat(label: 'Comptés', value: qty(r['comptes'])),
-                      MiniStat(label: 'Avec écart', value: qty(r['avec_ecart']), color: AppColors.warning),
+                      MiniStat(label: tr('Comptés'), value: qty(r['comptes'])),
+                      MiniStat(label: tr('Avec écart'), value: qty(r['avec_ecart']), color: AppColors.warning),
                       MiniStat(
-                        label: 'Écart (valeur)',
+                        label: tr('Écart (valeur)'),
                         value: money(ecartValeur),
                         color: ecartValeur < 0 ? AppColors.danger : ecartValeur > 0 ? AppColors.success : AppColors.ink,
                       ),
@@ -324,14 +325,18 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     const SizedBox(height: 8),
                     Text(
                       _ouvert
-                          ? 'Périmètre : ${r.integer('perimetre')} articles actifs. Scannez ou cherchez chaque article et saisissez la quantité réellement présente.'
-                          : 'Inventaire ${_statutLabel(_inv.str('statut')).toLowerCase()}${_inv.strOrNull('valide_le') != null ? ' le ${dateTime(_inv['valide_le'])}' : ''}.',
+                          ? tr('Périmètre : {n} articles actifs. Scannez ou cherchez chaque article et saisissez la quantité réellement présente.',
+                              {'n': r.integer('perimetre')})
+                          : _inv.strOrNull('valide_le') != null
+                              ? tr('Inventaire {statut} le {date}.',
+                                  {'statut': _statutLabel(_inv.str('statut')).toLowerCase(), 'date': dateTime(_inv['valide_le'])})
+                              : tr('Inventaire {statut}.', {'statut': _statutLabel(_inv.str('statut')).toLowerCase()}),
                       style: const TextStyle(color: AppColors.muted, fontSize: 12.5),
                     ),
                     const SizedBox(height: 8),
                     Row(children: [
                       FilterChip(
-                        label: const Text('Écarts seulement'),
+                        label: Text(tr('Écarts seulement')),
                         selected: _ecartsOnly,
                         onSelected: (v) {
                           setState(() => _ecartsOnly = v);
@@ -341,9 +346,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
                     ]),
                     const SizedBox(height: 6),
                     if (lignes.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 30),
-                        child: EmptyState(icon: Icons.qr_code_scanner, title: 'Aucun article compté', message: 'Commencez par scanner un article.'),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 30),
+                        child: EmptyState(icon: Icons.qr_code_scanner, title: tr('Aucun article compté'), message: tr('Commencez par scanner un article.')),
                       ),
                     for (final l in lignes) _line(l),
                   ]),
@@ -355,13 +360,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
                 decoration: const BoxDecoration(color: Colors.white, border: Border(top: BorderSide(color: AppColors.border))),
                 child: Row(children: [
-                  IconButton.filledTonal(tooltip: 'Rechercher', onPressed: _search, icon: const Icon(Icons.search)),
+                  IconButton.filledTonal(tooltip: tr('Rechercher'), onPressed: _search, icon: const Icon(Icons.search)),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: FilledButton.icon(onPressed: _scan, icon: const Icon(Icons.qr_code_scanner), label: const Text('Scanner')),
+                    child: FilledButton.icon(onPressed: _scan, icon: const Icon(Icons.qr_code_scanner), label: Text(tr('Scanner'))),
                   ),
                   const SizedBox(width: 8),
-                  OutlinedButton(onPressed: lignes.isEmpty && r.integer('comptes') == 0 ? null : _validate, child: const Text('Valider')),
+                  OutlinedButton(onPressed: lignes.isEmpty && r.integer('comptes') == 0 ? null : _validate, child: Text(tr('Valider'))),
                 ]),
               ),
             )
@@ -383,7 +388,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(a.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-            Text('Théorique ${qty(l['quantite_theorique'])} · compté ${qty(l['quantite_comptee'])} ${a.unit}',
+            Text(tr('Théorique {theo} · compté {compte} {unite}', {'theo': qty(l['quantite_theorique']), 'compte': qty(l['quantite_comptee']), 'unite': a.unit}),
                 style: const TextStyle(color: AppColors.muted, fontSize: 12)),
           ]),
         ),
@@ -399,7 +404,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
       direction: DismissDirection.endToStart,
       background: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        alignment: Alignment.centerRight,
+        alignment: AlignmentDirectional.centerEnd,
         padding: const EdgeInsets.symmetric(horizontal: 18),
         decoration: BoxDecoration(color: AppColors.danger, borderRadius: BorderRadius.circular(14)),
         child: const Icon(Icons.delete_outline, color: Colors.white),

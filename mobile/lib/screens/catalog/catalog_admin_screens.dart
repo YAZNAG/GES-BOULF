@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
+import '../../core/article.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/delete_helper.dart';
@@ -18,6 +20,12 @@ class _Level {
     required this.arKey,
     this.parentKey,
     this.countLabel,
+    required this.emptyTitle,
+    required this.newTitle,
+    required this.editTitle,
+    required this.what,
+    required this.deleted,
+    this.openLabel,
   });
 
   final String title;
@@ -30,13 +38,31 @@ class _Level {
   final String? parentKey;
   final String Function(Json)? countLabel;
 
+  // Libellés en français (affichés via tr()).
+  final String emptyTitle;
+  final String newTitle;
+  final String editTitle;
+
+  /// Désignation pour la suppression (placeholder {nom}).
+  final String what;
+  final String deleted;
+
+  /// « Ouvrir les … » (niveau enfant), null au dernier niveau.
+  final String? openLabel;
+
   static final familles = _Level(
     title: 'Familles',
     singular: 'famille',
     path: 'familles',
     frKey: 'nom_fr',
     arKey: 'nom_ar',
-    countLabel: (j) => '${j.integer('categories_count')} catégories · ${j.integer('articles_count')} produits',
+    countLabel: (j) => tr('{c} catégories · {p} produits', {'c': j.integer('categories_count'), 'p': j.integer('articles_count')}),
+    emptyTitle: 'Aucune famille',
+    newTitle: 'Nouvelle famille',
+    editTitle: 'Modifier la famille',
+    what: 'la famille « {nom} »',
+    deleted: 'Famille supprimée.',
+    openLabel: 'Ouvrir les catégories',
   );
   static final categories = _Level(
     title: 'Catégories',
@@ -45,7 +71,14 @@ class _Level {
     frKey: 'name_fr',
     arKey: 'name_ar',
     parentKey: 'famille_id',
-    countLabel: (j) => '${j.integer('sous_categories_count')} sous-catégories · ${j.integer('articles_count')} produits',
+    countLabel: (j) =>
+        tr('{s} sous-catégories · {p} produits', {'s': j.integer('sous_categories_count'), 'p': j.integer('articles_count')}),
+    emptyTitle: 'Aucune catégorie',
+    newTitle: 'Nouvelle catégorie',
+    editTitle: 'Modifier la catégorie',
+    what: 'la catégorie « {nom} »',
+    deleted: 'Catégorie supprimée.',
+    openLabel: 'Ouvrir les sous-catégories',
   );
   static final sousCategories = _Level(
     title: 'Sous-catégories',
@@ -54,10 +87,19 @@ class _Level {
     frKey: 'name_fr',
     arKey: 'name_ar',
     parentKey: 'categorie_id',
-    countLabel: (j) => '${j.integer('articles_count')} produits',
+    countLabel: (j) => tr('{p} produits', {'p': j.integer('articles_count')}),
+    emptyTitle: 'Aucune sous-catégorie',
+    newTitle: 'Nouvelle sous-catégorie',
+    editTitle: 'Modifier la sous-catégorie',
+    what: 'la sous-catégorie « {nom} »',
+    deleted: 'Sous-catégorie supprimée.',
   );
 
+  /// Nom français brut (formulaire).
   String nameOf(Json j) => j.str(frKey, j.str('nom'));
+
+  /// Nom affiché dans la langue courante.
+  String displayOf(Json j) => catName(j, nameOf(j));
 
   _Level? get child => identical(this, familles)
       ? categories
@@ -107,7 +149,7 @@ class _LevelScreenState extends State<_LevelScreen> {
       if (level.parentKey != null && widget.parent != null) {
         items = items.where((j) => j.integer(level.parentKey!) == widget.parent!.integer('id')).toList();
       }
-      items.sort((a, b) => level.nameOf(a).toLowerCase().compareTo(level.nameOf(b).toLowerCase()));
+      items.sort((a, b) => level.displayOf(a).toLowerCase().compareTo(level.displayOf(b).toLowerCase()));
       if (mounted) setState(() => _items = items);
     } catch (e) {
       if (mounted) setState(() => _error = e);
@@ -123,24 +165,24 @@ class _LevelScreenState extends State<_LevelScreen> {
     final api = context.api;
     final done = await deleteWithFallback(
       context,
-      what: 'la ${level.singular} « ${level.nameOf(item)} »',
-      confirmMessage: '« ${level.nameOf(item)} » sera supprimée. Impossible si elle contient encore des éléments.',
+      what: tr(level.what, {'nom': level.displayOf(item)}),
+      confirmMessage: tr('« {nom} » sera supprimée. Impossible si elle contient encore des éléments.', {'nom': level.displayOf(item)}),
       delete: () => api.delete('${level.path}/${item.integer('id')}'),
-      success: '${level.singular[0].toUpperCase()}${level.singular.substring(1)} supprimée.',
+      success: tr(level.deleted),
     );
     if (done) _load();
   }
 
   @override
   Widget build(BuildContext context) {
-    final parentName = widget.parent?.str('nom_fr', widget.parent!.str('name_fr', widget.parent!.str('nom')));
+    final parentName = widget.parent == null ? null : catName(widget.parent);
     return Scaffold(
-      appBar: darkAppBar(level.title, subtitle: parentName),
+      appBar: darkAppBar(tr(level.title), subtitle: parentName),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'cat-${level.path}',
         onPressed: () => _edit(),
         icon: const Icon(Icons.add),
-        label: const Text('Ajouter'),
+        label: Text(tr('Ajouter')),
       ),
       body: RefreshIndicator(
         onRefresh: _load,
@@ -153,8 +195,8 @@ class _LevelScreenState extends State<_LevelScreen> {
                         const SizedBox(height: 40),
                         EmptyState(
                           icon: Icons.category_outlined,
-                          title: 'Aucune ${level.singular}',
-                          message: 'Ajoutez la première avec le bouton « Ajouter ».',
+                          title: tr(level.emptyTitle),
+                          message: tr('Ajoutez la première avec le bouton « Ajouter ».'),
                         ),
                       ])
                     : GridView.builder(
@@ -174,7 +216,7 @@ class _LevelScreenState extends State<_LevelScreen> {
 
   Widget _card(Json item) {
     final url = context.api.imageUrl(item['image']);
-    final ar = item.strOrNull(level.arKey);
+    final second = catSecondary(item);
     final child = level.child;
     return Material(
       color: Colors.white,
@@ -189,9 +231,9 @@ class _LevelScreenState extends State<_LevelScreen> {
               url != null
                   ? Image.network(url, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _NoImage())
                   : const _NoImage(),
-              Positioned(
+              PositionedDirectional(
                 top: 6,
-                right: 6,
+                end: 6,
                 child: Material(
                   color: Colors.white.withValues(alpha: 0.92),
                   shape: const CircleBorder(),
@@ -207,8 +249,16 @@ class _LevelScreenState extends State<_LevelScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(level.nameOf(item), maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
-              if (ar != null && ar.isNotEmpty) Align(alignment: Alignment.centerLeft, child: ArabicText(ar, maxLines: 1)),
+              Text(level.displayOf(item), maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+              if (second != null && second.isNotEmpty)
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Directionality(
+                    textDirection: appLang.isAr ? TextDirection.ltr : TextDirection.rtl,
+                    child: Text(second,
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                  ),
+                ),
               if (level.countLabel != null)
                 Text(level.countLabel!(item), maxLines: 1, overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: AppColors.muted, fontSize: 11.5)),
@@ -225,17 +275,17 @@ class _LevelScreenState extends State<_LevelScreen> {
       showDragHandle: true,
       builder: (c) => SafeArea(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          ListTile(title: Text(level.nameOf(item), style: const TextStyle(fontWeight: FontWeight.w800))),
+          ListTile(title: Text(level.displayOf(item), style: const TextStyle(fontWeight: FontWeight.w800))),
           if (level.child != null)
             ListTile(
               leading: const Icon(Icons.folder_open_outlined),
-              title: Text('Ouvrir les ${level.child!.title.toLowerCase()}'),
+              title: Text(tr(level.openLabel ?? 'Ouvrir')),
               onTap: () => Navigator.pop(c, 'open'),
             ),
-          ListTile(leading: const Icon(Icons.edit_outlined), title: const Text('Modifier'), onTap: () => Navigator.pop(c, 'edit')),
+          ListTile(leading: const Icon(Icons.edit_outlined), title: Text(tr('Modifier')), onTap: () => Navigator.pop(c, 'edit')),
           ListTile(
             leading: const Icon(Icons.delete_outline, color: AppColors.danger),
-            title: const Text('Supprimer', style: TextStyle(color: AppColors.danger)),
+            title: Text(tr('Supprimer'), style: const TextStyle(color: AppColors.danger)),
             onTap: () => Navigator.pop(c, 'delete'),
           ),
         ]),
@@ -312,7 +362,7 @@ class _EntityFormState extends State<_EntityForm> {
         await api.delete('images/${l.path}/${widget.item!.integer('id')}');
       }
       if (!mounted) return;
-      showSuccess(context, widget.item == null ? 'Ajouté.' : 'Modifié.');
+      showSuccess(context, widget.item == null ? tr('Ajouté.') : tr('Modifié.'));
       Navigator.pop(context, true);
     } catch (e) {
       if (mounted) showError(context, e);
@@ -324,9 +374,9 @@ class _EntityFormState extends State<_EntityForm> {
   @override
   Widget build(BuildContext context) {
     final l = widget.level;
-    final parentName = widget.parent?.str('nom_fr', widget.parent!.str('name_fr', widget.parent!.str('nom')));
+    final parentName = widget.parent == null ? null : catName(widget.parent);
     return Scaffold(
-      appBar: darkAppBar(widget.item == null ? 'Nouvelle ${l.singular}' : 'Modifier la ${l.singular}', subtitle: parentName),
+      appBar: darkAppBar(widget.item == null ? tr(l.newTitle) : tr(l.editTitle), subtitle: parentName),
       body: Form(
         key: _form,
         child: ListView(padding: const EdgeInsets.all(16), children: [
@@ -339,18 +389,19 @@ class _EntityFormState extends State<_EntityForm> {
             ),
           ),
           if (_removePhoto && _photo == null)
-            const Padding(
-              padding: EdgeInsets.only(top: 6),
-              child: Text('La photo sera supprimée à l’enregistrement.',
-                  textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(tr('La photo sera supprimée à l’enregistrement.'),
+                  textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
             ),
           const SizedBox(height: 20),
           TextFormField(
             controller: _fr,
             autofocus: widget.item == null,
             textCapitalization: TextCapitalization.sentences,
-            decoration: const InputDecoration(labelText: 'Nom en français *'),
-            validator: (v) => (v == null || v.trim().isEmpty) ? 'Indiquez le nom.' : null,
+            textDirection: TextDirection.ltr,
+            decoration: InputDecoration(labelText: tr('Nom en français *')),
+            validator: (v) => (v == null || v.trim().isEmpty) ? tr('Indiquez le nom.') : null,
           ),
           const SizedBox(height: 12),
           Directionality(
@@ -359,7 +410,7 @@ class _EntityFormState extends State<_EntityForm> {
           ),
         ]),
       ),
-      bottomNavigationBar: BottomAction(label: 'Enregistrer', busy: _saving, onPressed: _save),
+      bottomNavigationBar: BottomAction(label: tr('Enregistrer'), busy: _saving, onPressed: _save),
     );
   }
 }

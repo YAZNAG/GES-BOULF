@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/article.dart';
 import '../core/format.dart';
+import '../core/i18n.dart';
 import '../core/theme.dart';
 import 'common.dart';
 import 'paged_list.dart';
@@ -43,7 +44,7 @@ Future<Json?> pickEntity(
   return Navigator.of(context).push<Json>(MaterialPageRoute(
     fullscreenDialog: true,
     builder: (c) => Scaffold(
-      appBar: darkAppBar(title),
+      appBar: darkAppBar(tr(title)),
       floatingActionButton: onCreate == null
           ? null
           : FloatingActionButton.extended(
@@ -53,13 +54,13 @@ Future<Json?> pickEntity(
                 if (created != null && c.mounted) Navigator.pop(c, created);
               },
               icon: const Icon(Icons.person_add_alt_1),
-              label: Text(createLabel),
+              label: Text(tr(createLabel)),
             ),
       body: Column(children: [
         ?top,
         Expanded(
           child: PagedList<Json>(
-            searchHint: searchHint,
+            searchHint: tr(searchHint),
             fetch: fetch,
             itemBuilder: (ctx, item, _) => ListTile(
               leading: leading?.call(item),
@@ -79,8 +80,8 @@ Future<Json?> pickSupplier(BuildContext context) {
   final api = context.api;
   return pickEntity(
     context,
-    title: 'Choisir un fournisseur',
-    searchHint: 'Nom, téléphone…',
+    title: tr('Choisir un fournisseur'),
+    searchHint: tr('Nom, téléphone…'),
     fetch: (page, q) => api.page('fournisseurs', (j) => j, page: page, query: {'q': q}),
     label: (j) => j.str('nom'),
     subtitle: (j) => [j.strOrNull('ville'), j.strOrNull('telephone')].whereType<String>().join(' · '),
@@ -95,16 +96,16 @@ Future<Json?> pickClient(BuildContext context) {
   final api = context.api;
   return pickEntity(
     context,
-    title: 'Choisir un client',
-    searchHint: 'Nom ou téléphone',
+    title: tr('Choisir un client'),
+    searchHint: tr('Nom ou téléphone'),
     fetch: (page, q) => api.page('m/clients', (j) => j, page: page, query: {'q': q}),
     label: (j) => j.str('nom'),
-    subtitle: (j) => [j.strOrNull('telephone'), j.str('type_client') == 'gros' ? 'Gros' : null].whereType<String>().join(' · '),
+    subtitle: (j) => [j.strOrNull('telephone'), j.str('type_client') == 'gros' ? tr('Gros') : null].whereType<String>().join(' · '),
     leading: (j) => ItemThumb(label: j.str('nom'), color: AppColors.violet, size: 40),
     trailing: (j) => j.dbl('solde') > 0
-        ? Text('Crédit ${money(j['solde'])}', style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700, fontSize: 12.5))
+        ? Text(tr('Crédit {montant}', {'montant': money(j['solde'])}), style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w700, fontSize: 12.5))
         : const Icon(Icons.chevron_right),
-    createLabel: 'Nouveau client',
+    createLabel: tr('Nouveau client'),
     onCreate: (c) async {
       final r = await Navigator.of(c).push<Object>(MaterialPageRoute(builder: (_) => const ClientForm(returnClient: true)));
       return r is Map ? r.cast<String, dynamic>() : null;
@@ -143,9 +144,9 @@ class _ProductPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar(title),
+      appBar: darkAppBar(tr(title)),
       body: PagedList<Json>(
-        searchHint: 'Code-barres, nom français ou arabe',
+        searchHint: tr('Code-barres, nom français ou arabe'),
         onScan: () => _scan(context),
         fetch: (page, search) => api.page('articles', (j) => j, page: page, query: {'q': search, 'sort': 'nom'}),
         itemBuilder: (ctx, p, _) => ArticleTile(article: p, onTap: () => Navigator.pop(ctx, p)),
@@ -178,16 +179,24 @@ class ArticleTile extends StatelessWidget {
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(a.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700)),
-              if (ar != null) Align(alignment: Alignment.centerLeft, child: ArabicText(ar, maxLines: 1)),
+              if (ar != null)
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Directionality(
+                    textDirection: appLang.isAr ? TextDirection.ltr : TextDirection.rtl,
+                    child: Text(ar,
+                        maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                  ),
+                ),
               const SizedBox(height: 3),
               Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
                 if (a.barcode.isNotEmpty)
                   Text(a.barcode, style: const TextStyle(fontSize: 12, color: AppColors.muted, fontFeatures: [FontFeature.tabularFigures()])),
-                if (!a.isActive) const Badge2('Inactif', color: AppColors.muted),
-                if (!a.isPriced) const Badge2('À tarifer', color: AppColors.warning),
+                if (!a.isActive) Badge2(tr('Inactif'), color: AppColors.muted),
+                if (!a.isPriced) Badge2(tr('À tarifer'), color: AppColors.warning),
                 if (showStock && stock != null)
                   Badge2(
-                    stock <= 0 ? 'Rupture' : 'Stock ${qty(stock)}',
+                    stock <= 0 ? tr('Rupture') : tr('Stock {n}', {'n': qty(stock)}),
                     color: stock <= 0 ? AppColors.danger : (stock <= a.stockMin ? AppColors.warning : AppColors.success),
                   ),
               ]),
@@ -266,7 +275,7 @@ class _RefDropdownState extends State<RefDropdown> {
     if (_items == null) {
       return InputDecorator(
         decoration: InputDecoration(
-          labelText: widget.label,
+          labelText: tr(widget.label),
           prefixIcon: widget.prefixIcon == null ? null : Icon(widget.prefixIcon),
           suffixIcon: _error != null
               ? IconButton(
@@ -279,7 +288,7 @@ class _RefDropdownState extends State<RefDropdown> {
                   padding: EdgeInsets.all(14),
                   child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
         ),
-        child: Text(_error != null ? 'Chargement impossible' : 'Chargement…', style: const TextStyle(color: AppColors.muted)),
+        child: Text(_error != null ? tr('Chargement impossible') : tr('Chargement…'), style: const TextStyle(color: AppColors.muted)),
       );
     }
     final ids = _items!.map((e) => e.integer('id')).toSet();
@@ -287,10 +296,10 @@ class _RefDropdownState extends State<RefDropdown> {
     return DropdownButtonFormField<int?>(
       initialValue: value,
       isExpanded: true,
-      decoration: InputDecoration(labelText: widget.label, prefixIcon: widget.prefixIcon == null ? null : Icon(widget.prefixIcon)),
+      decoration: InputDecoration(labelText: tr(widget.label), prefixIcon: widget.prefixIcon == null ? null : Icon(widget.prefixIcon)),
       validator: widget.validator,
       items: [
-        if (widget.allowNull) DropdownMenuItem<int?>(value: null, child: Text(widget.nullLabel)),
+        if (widget.allowNull) DropdownMenuItem<int?>(value: null, child: Text(tr(widget.nullLabel))),
         for (final it in _items!)
           DropdownMenuItem<int?>(value: it.integer('id'), child: Text(widget.itemLabel(it), overflow: TextOverflow.ellipsis)),
       ],
@@ -318,7 +327,7 @@ class EntityField extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: InputDecorator(
         decoration: InputDecoration(
-          labelText: label,
+          labelText: tr(label),
           errorText: error,
           enabled: onTap != null,
           prefixIcon: icon == null ? null : Icon(icon),
@@ -327,7 +336,7 @@ class EntityField extends StatelessWidget {
               : (onTap == null ? null : const Icon(Icons.arrow_drop_down)),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          Text(text ?? 'Choisir…',
+          Text(text ?? tr('Choisir…'),
               style: TextStyle(color: text == null ? AppColors.muted : AppColors.ink, fontWeight: text == null ? null : FontWeight.w600)),
           if (subtitle != null) Text(subtitle!, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
         ]),
@@ -361,11 +370,11 @@ class DateField extends StatelessWidget {
       },
       child: InputDecorator(
         decoration: InputDecoration(
-          labelText: label,
+          labelText: tr(label),
           prefixIcon: const Icon(Icons.event),
           suffixIcon: allowClear && value != null ? IconButton(icon: const Icon(Icons.close), onPressed: () => onChanged(null)) : null,
         ),
-        child: Text(value == null ? 'Choisir…' : date(value)),
+        child: Text(value == null ? tr('Choisir…') : date(value)),
       ),
     );
   }
@@ -395,7 +404,7 @@ class PaymentModePicker extends StatelessWidget {
       for (final (k, label) in list)
         ChoiceChip(
           avatar: Icon(icon(k), size: 18, color: value == k ? AppColors.primary : AppColors.muted),
-          label: Text(label),
+          label: Text(tr(label)),
           selected: value == k,
           showCheckmark: false,
           selectedColor: AppColors.primary.withValues(alpha: 0.12),

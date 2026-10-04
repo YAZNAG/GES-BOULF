@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/delete_helper.dart';
@@ -28,7 +29,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
-      appBar: darkAppBar(widget.creditOnly ? 'Crédit clients' : 'Clients'),
+      appBar: darkAppBar(widget.creditOnly ? tr('Crédit clients') : tr('Clients')),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'client-add',
         onPressed: () async {
@@ -36,16 +37,16 @@ class _ClientsScreenState extends State<ClientsScreen> {
           if (ok == true) _list.currentState?.reload();
         },
         icon: const Icon(Icons.person_add_alt_1),
-        label: const Text('Client'),
+        label: Text(tr('Client')),
       ),
       body: PagedList<Json>(
         key: _list,
-        searchHint: 'Nom ou téléphone',
+        searchHint: tr('Nom ou téléphone'),
         emptyIcon: Icons.people_outline,
-        emptyTitle: _credit ? 'Aucun crédit en cours' : 'Aucun client',
-        emptyMessage: _credit ? 'Tous les clients sont à jour de leurs paiements.' : null,
+        emptyTitle: _credit ? tr('Aucun crédit en cours') : tr('Aucun client'),
+        emptyMessage: _credit ? tr('Tous les clients sont à jour de leurs paiements.') : null,
         filters: FilterChips<bool>(
-          options: const [(false, 'Tous les clients'), (true, 'Avec crédit')],
+          options: [(false, tr('Tous les clients')), (true, tr('Avec crédit'))],
           value: _credit,
           onChanged: (v) {
             setState(() => _credit = v ?? false);
@@ -56,9 +57,9 @@ class _ClientsScreenState extends State<ClientsScreen> {
           final s = raw.obj('stats');
           if (s == null) return null;
           return StatsRow(children: [
-            MiniStat(label: 'Clients', value: qty(s['total'])),
-            MiniStat(label: 'Avec crédit', value: qty(s['avec_credit']), color: AppColors.warning),
-            MiniStat(label: 'Crédit total', value: moneyShort(s['credit_total']), color: AppColors.danger),
+            MiniStat(label: tr('Clients'), value: qty(s['total'])),
+            MiniStat(label: tr('Avec crédit'), value: qty(s['avec_credit']), color: AppColors.warning),
+            MiniStat(label: tr('Crédit total'), value: moneyShort(s['credit_total']), color: AppColors.danger),
           ]);
         },
         fetch: (page, q) => api.page('m/clients', (j) => j, page: page, query: {'q': q, if (_credit) 'avec_credit': 1}),
@@ -66,20 +67,20 @@ class _ClientsScreenState extends State<ClientsScreen> {
           leading: ItemThumb(label: c.str('nom'), color: AppColors.violet, size: 44),
           title: Row(children: [
             Flexible(child: Text(c.str('nom'), overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700))),
-            if (!c.flag('actif', true)) const Padding(padding: EdgeInsets.only(left: 6), child: Badge2('Inactif')),
+            if (!c.flag('actif', true)) Padding(padding: const EdgeInsetsDirectional.only(start: 6), child: Badge2(tr('Inactif'))),
           ]),
           subtitle: Text(
             [
-              c.strOrNull('telephone') ?? 'Pas de téléphone',
-              if (c.str('type_client') == 'gros') 'Gros',
-              '${c.integer('ventes_count')} vente${c.integer('ventes_count') > 1 ? 's' : ''}',
+              c.strOrNull('telephone') ?? tr('Pas de téléphone'),
+              if (c.str('type_client') == 'gros') tr('Gros'),
+              c.integer('ventes_count') > 1 ? tr('{n} ventes', {'n': c.integer('ventes_count')}) : tr('{n} vente', {'n': c.integer('ventes_count')}),
             ].join(' · '),
             style: const TextStyle(fontSize: 12.5),
           ),
           trailing: c.dbl('solde') > 0
               ? Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
                   Text(money(c['solde']), style: const TextStyle(color: AppColors.danger, fontWeight: FontWeight.w800)),
-                  const Text('crédit', style: TextStyle(fontSize: 11.5, color: AppColors.muted)),
+                  Text(tr('crédit'), style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
                 ])
               : const Icon(Icons.chevron_right),
           onTap: () async {
@@ -128,13 +129,14 @@ class _ClientPaymentSheetState extends State<_ClientPaymentSheet> {
   Future<void> _save() async {
     final v = parseInput(_amount.text);
     if (v == null || v <= 0) {
-      setState(() => _errors = {'montant': ['Saisissez un montant supérieur à 0.']});
+      setState(() => _errors = {'montant': [tr('Saisissez un montant supérieur à 0.')]});
       return;
     }
     final solde = widget.client.dbl('solde');
     if (solde > 0 && v > solde + 0.001) {
-      final ok = await confirm(context, 'Montant supérieur au crédit',
-          'Le montant (${money(v)}) dépasse le crédit (${money(solde)}). Le client aura un solde en sa faveur. Continuer ?');
+      final ok = await confirm(context, tr('Montant supérieur au crédit'),
+          tr('Le montant ({montant}) dépasse le crédit ({credit}). Le client aura un solde en sa faveur. Continuer ?',
+              {'montant': money(v), 'credit': money(solde)}));
       if (!ok || !mounted) return;
     }
     setState(() {
@@ -149,7 +151,7 @@ class _ClientPaymentSheetState extends State<_ClientPaymentSheet> {
         if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
       });
       if (!mounted) return;
-      showSuccess(context, 'Règlement de ${money(v)} enregistré.');
+      showSuccess(context, tr('Règlement de {montant} enregistré.', {'montant': money(v)}));
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -169,28 +171,28 @@ class _ClientPaymentSheetState extends State<_ClientPaymentSheet> {
       padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 20),
       child: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-          const Text('Encaisser un règlement', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+          Text(tr('Encaisser un règlement'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          Text('${c.str('nom')} · crédit ${money(c['solde'])}', style: const TextStyle(color: AppColors.muted)),
+          Text('${c.str('nom')} · ${tr('crédit {montant}', {'montant': money(c['solde'])})}', style: const TextStyle(color: AppColors.muted)),
           const SizedBox(height: 16),
           TextField(
             controller: _amount,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            decoration: InputDecoration(labelText: 'Montant', suffixText: 'DH', errorText: _errors['montant']?.first),
+            decoration: InputDecoration(labelText: tr('Montant'), suffixText: tr('DH'), errorText: _errors['montant']?.first),
           ),
           const SizedBox(height: 12),
           PaymentModePicker(value: _mode, onChanged: (m) => setState(() => _mode = m)),
           const SizedBox(height: 12),
-          TextField(controller: _note, decoration: const InputDecoration(labelText: 'Note (facultatif)')),
+          TextField(controller: _note, decoration: InputDecoration(labelText: tr('Note (facultatif)'))),
           const SizedBox(height: 16),
           FilledButton.icon(
             onPressed: _busy ? null : _save,
             icon: _busy
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.check),
-            label: const Text('Enregistrer le règlement'),
+            label: Text(tr('Enregistrer le règlement')),
           ),
         ]),
       ),
@@ -221,16 +223,16 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     final actif = c.flag('actif', true);
     final ok = await confirm(
       context,
-      actif ? 'Désactiver le client' : 'Activer le client',
+      actif ? tr('Désactiver le client') : tr('Activer le client'),
       actif
-          ? '« ${c.str('nom')} » ne sera plus proposé en caisse. Son historique et son crédit sont conservés.'
-          : '« ${c.str('nom')} » sera de nouveau proposé en caisse.',
-      ok: actif ? 'Désactiver' : 'Activer',
+          ? tr('« {nom} » ne sera plus proposé en caisse. Son historique et son crédit sont conservés.', {'nom': c.str('nom')})
+          : tr('« {nom} » sera de nouveau proposé en caisse.', {'nom': c.str('nom')}),
+      ok: actif ? tr('Désactiver') : tr('Activer'),
       danger: actif,
     );
     if (!ok || !mounted) return;
     final res = await runBusy(context, () => api.put('clients/${widget.clientId}', {'actif': !actif}),
-        success: actif ? 'Client désactivé.' : 'Client activé.');
+        success: actif ? tr('Client désactivé.') : tr('Client activé.'));
     if (res != null) reload();
   }
 
@@ -239,14 +241,14 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
     var deleted = false;
     final changed = await deleteWithFallback(
       context,
-      what: 'le client « ${c.str('nom')} »',
+      what: tr('le client « {nom} »', {'nom': c.str('nom')}),
       delete: () async {
         await api.delete('clients/${widget.clientId}');
         deleted = true;
       },
       deactivate: c.flag('actif', true) ? () => api.put('clients/${widget.clientId}', {'actif': false}) : null,
-      success: 'Client supprimé.',
-      deactivated: 'Client désactivé.',
+      success: tr('Client supprimé.'),
+      deactivated: tr('Client désactivé.'),
     );
     if (!changed || !mounted) return;
     if (deleted) {
@@ -259,7 +261,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar('Fiche client'),
+      appBar: darkAppBar(tr('Fiche client')),
       body: AsyncView<Json>(
         key: _view,
         load: () async => (await context.api.get('clients/${widget.clientId}/history') as Map).cast<String, dynamic>(),
@@ -287,7 +289,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text(c.str('nom'), style: const TextStyle(color: Colors.white, fontSize: 19, fontWeight: FontWeight.w800)),
                         Text(
-                          [c.str('type_client') == 'gros' ? 'Client gros' : 'Client détail', if (!c.flag('actif', true)) 'Désactivé']
+                          [c.str('type_client') == 'gros' ? tr('Client gros') : tr('Client détail'), if (!c.flag('actif', true)) tr('Désactivé')]
                               .join(' · '),
                           style: TextStyle(color: c.flag('actif', true) ? Colors.white60 : const Color(0xFFFCA5A5)),
                         ),
@@ -295,11 +297,11 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.edit_outlined, color: Colors.white),
-                      tooltip: 'Modifier',
+                      tooltip: tr('Modifier'),
                       onPressed: () => _edit(c, reload),
                     ),
                     PopupMenuButton<String>(
-                      tooltip: 'Actions',
+                      tooltip: tr('Actions'),
                       icon: const Icon(Icons.more_vert, color: Colors.white),
                       onSelected: (v) => switch (v) {
                         'edit' => _edit(c, reload),
@@ -307,19 +309,19 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                         _ => _delete(c, reload),
                       },
                       itemBuilder: (_) => [
-                        const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Modifier'))),
+                        PopupMenuItem(value: 'edit', child: ListTile(leading: const Icon(Icons.edit_outlined), title: Text(tr('Modifier')))),
                         PopupMenuItem(
                           value: 'toggle',
                           child: ListTile(
                             leading: Icon(c.flag('actif', true) ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                            title: Text(c.flag('actif', true) ? 'Désactiver' : 'Activer'),
+                            title: Text(c.flag('actif', true) ? tr('Désactiver') : tr('Activer')),
                           ),
                         ),
-                        const PopupMenuItem(
+                        PopupMenuItem(
                           value: 'delete',
                           child: ListTile(
-                            leading: Icon(Icons.delete_outline, color: AppColors.danger),
-                            title: Text('Supprimer', style: TextStyle(color: AppColors.danger)),
+                            leading: const Icon(Icons.delete_outline, color: AppColors.danger),
+                            title: Text(tr('Supprimer'), style: const TextStyle(color: AppColors.danger)),
                           ),
                         ),
                       ],
@@ -329,7 +331,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                   Row(children: [
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text('Crédit en cours', style: TextStyle(color: Colors.white60, fontSize: 12.5)),
+                        Text(tr('Crédit en cours'), style: const TextStyle(color: Colors.white60, fontSize: 12.5)),
                         Text(money(solde),
                             style: TextStyle(
                                 color: solde > 0 ? const Color(0xFFFCA5A5) : const Color(0xFF86EFAC),
@@ -339,7 +341,7 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     ),
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        const Text('Total des achats', style: TextStyle(color: Colors.white60, fontSize: 12.5)),
+                        Text(tr('Total des achats'), style: const TextStyle(color: Colors.white60, fontSize: 12.5)),
                         Text(money(d['total_spent']), style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
                       ]),
                     ),
@@ -352,25 +354,25 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                   if (await recordClientPayment(context, c)) reload();
                 },
                 icon: const Icon(Icons.payments_outlined),
-                label: const Text('Encaisser un règlement'),
+                label: Text(tr('Encaisser un règlement')),
               ),
               const SizedBox(height: 14),
-              SectionCard(title: 'Coordonnées', icon: Icons.contact_phone_outlined, children: [
-                InfoRow('Téléphone', c.str('telephone')),
-                InfoRow('E-mail', c.str('email')),
-                InfoRow('Adresse', c.str('adresse')),
+              SectionCard(title: tr('Coordonnées'), icon: Icons.contact_phone_outlined, children: [
+                InfoRow(tr('Téléphone'), c.str('telephone')),
+                InfoRow(tr('E-mail'), c.str('email')),
+                InfoRow(tr('Adresse'), c.str('adresse')),
               ]),
               GroupLabel(
-                'Ventes (${ventes.length})',
+                tr('Ventes ({n})', {'n': ventes.length}),
                 trailing: ventes.isEmpty
                     ? null
                     : TextButton(
                         onPressed: () => context.push(SalesScreen(clientId: widget.clientId, clientName: c.str('nom'))),
-                        child: const Text('Tout voir'),
+                        child: Text(tr('Tout voir')),
                       ),
               ),
               if (ventes.isEmpty)
-                const Card(child: Padding(padding: EdgeInsets.all(18), child: Text('Aucune vente.', style: TextStyle(color: AppColors.muted))))
+                Card(child: Padding(padding: const EdgeInsets.all(18), child: Text(tr('Aucune vente.'), style: const TextStyle(color: AppColors.muted))))
               else
                 Card(
                   clipBehavior: Clip.antiAlias,
@@ -381,9 +383,9 @@ class _ClientDetailScreenState extends State<ClientDetailScreen> {
                     ],
                   ]),
                 ),
-              GroupLabel('Règlements (${paiements.length})'),
+              GroupLabel(tr('Règlements ({n})', {'n': paiements.length})),
               if (paiements.isEmpty)
-                const Card(child: Padding(padding: EdgeInsets.all(18), child: Text('Aucun règlement.', style: TextStyle(color: AppColors.muted))))
+                Card(child: Padding(padding: const EdgeInsets.all(18), child: Text(tr('Aucun règlement.'), style: const TextStyle(color: AppColors.muted))))
               else
                 Card(
                   clipBehavior: Clip.antiAlias,
@@ -457,7 +459,7 @@ class _ClientFormState extends State<ClientForm> {
           ? await context.api.post('clients', body)
           : await context.api.put('clients/${widget.client!.integer('id')}', body);
       if (!mounted) return;
-      showSuccess(context, widget.client == null ? 'Client créé.' : 'Client modifié.');
+      showSuccess(context, widget.client == null ? tr('Client créé.') : tr('Client modifié.'));
       Navigator.pop(context, widget.returnClient && saved is Map ? saved.cast<String, dynamic>() : true);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -473,23 +475,23 @@ class _ClientFormState extends State<ClientForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar(widget.client == null ? 'Nouveau client' : 'Modifier le client'),
+      appBar: darkAppBar(widget.client == null ? tr('Nouveau client') : tr('Modifier le client')),
       body: Form(
         key: _form,
         child: ListView(padding: const EdgeInsets.all(16), children: [
           TextFormField(
             controller: _nom,
             textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(labelText: 'Nom *', prefixIcon: const Icon(Icons.person_outline), errorText: _errors['nom']?.first),
-            validator: (v) => (v == null || v.trim().isEmpty) ? 'Le nom est obligatoire.' : null,
+            decoration: InputDecoration(labelText: tr('Nom *'), prefixIcon: const Icon(Icons.person_outline), errorText: _errors['nom']?.first),
+            validator: (v) => (v == null || v.trim().isEmpty) ? tr('Le nom est obligatoire.') : null,
           ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _tel,
             keyboardType: TextInputType.phone,
             decoration: InputDecoration(
-              labelText: 'Téléphone (facultatif)',
-              helperText: 'Un numéro ne peut appartenir qu’à un seul client.',
+              labelText: tr('Téléphone (facultatif)'),
+              helperText: tr('Un numéro ne peut appartenir qu’à un seul client.'),
               prefixIcon: const Icon(Icons.phone_outlined),
               errorText: _errors['telephone']?.first,
             ),
@@ -498,21 +500,21 @@ class _ClientFormState extends State<ClientForm> {
           TextFormField(
             controller: _email,
             keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(labelText: 'E-mail (facultatif)', prefixIcon: const Icon(Icons.mail_outline), errorText: _errors['email']?.first),
+            decoration: InputDecoration(labelText: tr('E-mail (facultatif)'), prefixIcon: const Icon(Icons.mail_outline), errorText: _errors['email']?.first),
           ),
           const SizedBox(height: 12),
           TextFormField(
             controller: _adresse,
             maxLines: 2,
-            decoration: const InputDecoration(labelText: 'Adresse', prefixIcon: Icon(Icons.place_outlined)),
+            decoration: InputDecoration(labelText: tr('Adresse'), prefixIcon: const Icon(Icons.place_outlined)),
           ),
           const SizedBox(height: 16),
-          const Text('Type de client', style: TextStyle(fontWeight: FontWeight.w700)),
+          Text(tr('Type de client'), style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'detail', label: Text('Détail'), icon: Icon(Icons.person)),
-              ButtonSegment(value: 'gros', label: Text('Gros'), icon: Icon(Icons.store)),
+            segments: [
+              ButtonSegment(value: 'detail', label: Text(tr('Détail')), icon: const Icon(Icons.person)),
+              ButtonSegment(value: 'gros', label: Text(tr('Gros')), icon: const Icon(Icons.store)),
             ],
             selected: {_type},
             onSelectionChanged: (s) => setState(() => _type = s.first),
@@ -520,14 +522,14 @@ class _ClientFormState extends State<ClientForm> {
           if (widget.client != null)
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text('Client actif'),
+              title: Text(tr('Client actif')),
               value: _actif,
               activeThumbColor: AppColors.primary,
               onChanged: (v) => setState(() => _actif = v),
             ),
         ]),
       ),
-      bottomNavigationBar: BottomAction(label: 'Enregistrer', busy: _busy, onPressed: _save),
+      bottomNavigationBar: BottomAction(label: tr('Enregistrer'), busy: _busy, onPressed: _save),
     );
   }
 }

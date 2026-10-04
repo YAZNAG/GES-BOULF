@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../core/i18n.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
+import '../widgets/language_switch.dart';
 import 'login_screen.dart';
 import 'update.dart';
 
@@ -14,7 +16,7 @@ class AboutScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.session;
     return Scaffold(
-      appBar: darkAppBar('À propos'),
+      appBar: darkAppBar(tr('À propos')),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         Container(
           padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
@@ -23,7 +25,7 @@ class AboutScreen extends StatelessWidget {
             const BrandLogo(size: 72),
             const SizedBox(height: 14),
             const Text('Boulfrik', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900)),
-            const Text('Gestion du supermarché', style: TextStyle(color: Colors.white70)),
+            Text(tr('Gestion du supermarché'), style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 12),
             FutureBuilder<PackageInfo>(
               future: PackageInfo.fromPlatform(),
@@ -31,7 +33,9 @@ class AboutScreen extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(20)),
                 child: Text(
-                  snap.hasData ? 'Version ${snap.data!.version} (build ${snap.data!.buildNumber})' : 'Version …',
+                  snap.hasData
+                      ? tr('Version {version} (build {build})', {'version': snap.data!.version, 'build': snap.data!.buildNumber})
+                      : tr('Version …'),
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
                 ),
               ),
@@ -44,27 +48,29 @@ class AboutScreen extends StatelessWidget {
           child: Column(children: [
             ListTile(
               leading: const IconSquare(Icons.system_update_outlined, color: AppColors.success),
-              title: const Text('Rechercher une mise à jour', style: TextStyle(fontWeight: FontWeight.w600)),
+              title: Text(tr('Rechercher une mise à jour'), style: const TextStyle(fontWeight: FontWeight.w600)),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => checkForUpdate(context),
             ),
             const Divider(height: 1, indent: 72),
             ListTile(
               leading: const IconSquare(Icons.dns_outlined, color: AppColors.info),
-              title: const Text('Serveur', style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text(s.api.baseUrl),
+              title: Text(tr('Serveur'), style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(s.api.baseUrl, textDirection: TextDirection.ltr),
             ),
             const Divider(height: 1, indent: 72),
             ListTile(
               leading: const IconSquare(Icons.person_outline, color: AppColors.violet),
-              title: const Text('Connecté en tant que', style: TextStyle(fontWeight: FontWeight.w600)),
+              title: Text(tr('Connecté en tant que'), style: const TextStyle(fontWeight: FontWeight.w600)),
               subtitle: Text('${s.userName} · ${s.roleLabel}'),
             ),
+            const Divider(height: 1, indent: 72),
+            const LanguageTile(color: AppColors.primary),
           ]),
         ),
         const SizedBox(height: 24),
-        const Text('© Boulfrik — application réalisée par Optizaworks.',
-            textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+        Text(tr('© Boulfrik — application réalisée par Optizaworks.'),
+            textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
       ]),
     );
   }

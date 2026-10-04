@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../core/api.dart';
+import '../core/i18n.dart';
 import '../core/theme.dart';
 import '../widgets/common.dart';
+import '../widgets/language_switch.dart';
 import 'about_screen.dart';
 import 'admin/settings_screens.dart';
 import 'admin/user_profile_screen.dart';
@@ -26,6 +28,7 @@ import 'tarifs/tarifs_screen.dart';
 typedef _Module = (String title, String subtitle, IconData icon, Color color, Widget Function() page);
 
 /// « Plus » : profil, modules, paramètres.
+/// Les titres des modules sont en français et traduits à l'affichage (tr).
 class MoreScreen extends StatelessWidget {
   const MoreScreen({super.key});
 
@@ -86,7 +89,7 @@ class MoreScreen extends StatelessWidget {
               borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
             ),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Plus', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
+              Text(tr('Plus'), style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
               const SizedBox(height: 14),
               Material(
                 color: Colors.transparent,
@@ -123,15 +126,15 @@ class MoreScreen extends StatelessWidget {
                             child: Text(s.roleLabel, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                           ),
                           const SizedBox(height: 4),
-                          const Text('Voir mon profil et mon activité ›', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                          Text(tr('Voir mon profil et mon activité ›'), style: const TextStyle(color: Colors.white54, fontSize: 12)),
                         ]),
                       ),
                       IconButton(
-                        tooltip: 'Se déconnecter',
+                        tooltip: tr('Se déconnecter'),
                         style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: 0.1)),
                         icon: const Icon(Icons.logout, color: Colors.white),
                         onPressed: () async {
-                          if (await confirm(context, 'Déconnexion', 'Voulez-vous vous déconnecter ?', ok: 'Se déconnecter', danger: true)) {
+                          if (await confirm(context, tr('Déconnexion'), tr('Voulez-vous vous déconnecter ?'), ok: tr('Se déconnecter'), danger: true)) {
                             await s.logout();
                           }
                         },
@@ -148,7 +151,7 @@ class MoreScreen extends StatelessWidget {
           sliver: SliverList.list(children: [
             for (final (title, items) in sections)
               if (items.isNotEmpty) ...[
-                GroupLabel(title),
+                GroupLabel(tr(title)),
                 Card(
                   clipBehavior: Clip.antiAlias,
                   child: Column(children: [
@@ -156,8 +159,8 @@ class MoreScreen extends StatelessWidget {
                       if (i > 0) const Divider(height: 1, indent: 70),
                       ListTile(
                         leading: IconSquare(items[i].$3, color: items[i].$4),
-                        title: Text(items[i].$1, style: const TextStyle(fontWeight: FontWeight.w700)),
-                        subtitle: Text(items[i].$2, style: const TextStyle(fontSize: 12.5)),
+                        title: Text(tr(items[i].$1), style: const TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: Text(tr(items[i].$2), style: const TextStyle(fontSize: 12.5)),
                         trailing: const Icon(Icons.chevron_right, color: AppColors.muted),
                         onTap: () => context.push(items[i].$5()),
                       ),
@@ -165,16 +168,18 @@ class MoreScreen extends StatelessWidget {
                   ]),
                 ),
               ],
+            GroupLabel(tr('Préférences')),
+            const Card(clipBehavior: Clip.antiAlias, child: LanguageTile()),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger, side: const BorderSide(color: AppColors.border)),
               onPressed: () async {
-                if (await confirm(context, 'Déconnexion', 'Voulez-vous vous déconnecter ?', ok: 'Se déconnecter', danger: true)) {
+                if (await confirm(context, tr('Déconnexion'), tr('Voulez-vous vous déconnecter ?'), ok: tr('Se déconnecter'), danger: true)) {
                   await s.logout();
                 }
               },
               icon: const Icon(Icons.logout),
-              label: const Text('Se déconnecter'),
+              label: Text(tr('Se déconnecter')),
             ),
           ]),
         ),

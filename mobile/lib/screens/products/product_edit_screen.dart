@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/api.dart';
 import '../../core/article.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/photo_field.dart';
@@ -15,8 +16,8 @@ Future<Json?> pickBrand(BuildContext context) {
   final api = context.api;
   return pickEntity(
     context,
-    title: 'Choisir une marque',
-    searchHint: 'Nom de la marque',
+    title: tr('Choisir une marque'),
+    searchHint: tr('Nom de la marque'),
     fetch: (page, q) => api.page('marques', (j) => j, page: page, perPage: 50, query: {'q': q}),
     label: (j) => j.str('nom'),
     leading: (j) => ItemThumb(path: brandImagePath(j), label: j.str('nom'), color: AppColors.info, size: 40),
@@ -77,7 +78,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   }
 
   Future<void> _scanCode() async {
-    final code = await ScannerPage.scan(context, title: 'Code-barres du produit');
+    final code = await ScannerPage.scan(context, title: tr('Code-barres du produit'));
     if (code != null && mounted) setState(() => _code.text = code);
   }
 
@@ -114,7 +115,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
         await api.delete('images/articles/$_id');
       }
       if (!mounted) return;
-      showSuccess(context, 'Fiche article enregistrée.');
+      showSuccess(context, tr('Fiche article enregistrée.'));
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (!mounted) return;
@@ -131,7 +132,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
   Widget build(BuildContext context) {
     final unites = {..._unites, if (_unite.isNotEmpty) _unite}.toList();
     return Scaffold(
-      appBar: darkAppBar('Modifier la fiche', subtitle: a.articleName),
+      appBar: darkAppBar(tr('Modifier la fiche'), subtitle: a.articleName),
       body: Form(
         key: _form,
         child: ListView(padding: const EdgeInsets.fromLTRB(16, 16, 16, 24), children: [
@@ -144,17 +145,18 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
             ),
           ),
           if (_removePhoto && _photo == null)
-            const Padding(
-              padding: EdgeInsets.only(top: 6),
-              child: Text('La photo sera supprimée à l’enregistrement.',
-                  textAlign: TextAlign.center, style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(tr('La photo sera supprimée à l’enregistrement.'),
+                  textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
             ),
-          const GroupLabel('Produit'),
+          GroupLabel(tr('Produit')),
           TextFormField(
             controller: _nameFr,
             textCapitalization: TextCapitalization.sentences,
-            decoration: InputDecoration(labelText: 'Nom en français *', errorText: _errors['name_fr']?.first ?? _errors['nom']?.first),
-            validator: (v) => (v == null || v.trim().length < 2) ? 'Indiquez le nom du produit.' : null,
+            textDirection: TextDirection.ltr,
+            decoration: InputDecoration(labelText: tr('Nom en français *'), errorText: _errors['name_fr']?.first ?? _errors['nom']?.first),
+            validator: (v) => (v == null || v.trim().length < 2) ? tr('Indiquez le nom du produit.') : null,
           ),
           const SizedBox(height: 12),
           Directionality(
@@ -166,7 +168,7 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
           ),
           const SizedBox(height: 12),
           EntityField(
-            label: 'Marque',
+            label: tr('Marque'),
             text: _marqueNom,
             icon: Icons.verified_outlined,
             error: _errors['marque_id']?.first,
@@ -178,13 +180,13 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
           ),
           const SizedBox(height: 12),
           RefDropdown(
-            label: 'Sous-catégorie *',
+            label: tr('Sous-catégorie *'),
             path: 'sous_categories',
             query: const {'per_page': 1000},
             value: _sousCategorie,
             onChanged: (v) => setState(() => _sousCategorie = v),
-            itemLabel: (j) => j.str('name_fr', j.str('nom')),
-            validator: (v) => v == null ? 'Choisissez la sous-catégorie.' : null,
+            itemLabel: (j) => catName(j),
+            validator: (v) => v == null ? tr('Choisissez la sous-catégorie.') : null,
             prefixIcon: Icons.category_outlined,
           ),
           const SizedBox(height: 12),
@@ -192,28 +194,28 @@ class _ProductEditScreenState extends State<ProductEditScreen> {
             key: ValueKey(unites.length),
             initialValue: _unite.isEmpty ? null : _unite,
             decoration: InputDecoration(
-              labelText: 'Unité de vente',
+              labelText: tr('Unité de vente'),
               prefixIcon: const Icon(Icons.straighten),
               errorText: _errors['unite']?.first,
             ),
             items: [for (final u in unites) DropdownMenuItem(value: u, child: Text(u))],
             onChanged: (v) => setState(() => _unite = v ?? _unite),
           ),
-          const GroupLabel('Code-barres'),
+          GroupLabel(tr('Code-barres')),
           TextFormField(
             controller: _code,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
-              labelText: 'Code-barres',
+              labelText: tr('Code-barres'),
               prefixIcon: const Icon(Icons.qr_code_2),
               errorText: _errors['code_article']?.first,
-              suffixIcon: IconButton(tooltip: 'Scanner', icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary), onPressed: _scanCode),
+              suffixIcon: IconButton(tooltip: tr('Scanner'), icon: const Icon(Icons.qr_code_scanner, color: AppColors.primary), onPressed: _scanCode),
             ),
-            validator: (v) => (v == null || v.trim().isEmpty) && a.barcode.isNotEmpty ? 'Le code-barres ne peut pas être vidé.' : null,
+            validator: (v) => (v == null || v.trim().isEmpty) && a.barcode.isNotEmpty ? tr('Le code-barres ne peut pas être vidé.') : null,
           ),
         ]),
       ),
-      bottomNavigationBar: BottomAction(label: 'Enregistrer', busy: _saving, onPressed: _save),
+      bottomNavigationBar: BottomAction(label: tr('Enregistrer'), busy: _saving, onPressed: _save),
     );
   }
 }

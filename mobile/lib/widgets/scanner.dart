@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
+import '../core/i18n.dart';
 import '../core/theme.dart';
 
 /// Scan d'un code-barres. Mode simple : renvoie le code lu.
@@ -74,17 +75,17 @@ class _ScannerPageState extends State<ScannerPage> {
     final code = await showDialog<String>(
       context: context,
       builder: (c) => AlertDialog(
-        title: const Text('Saisir le code'),
+        title: Text(tr('Saisir le code')),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           keyboardType: TextInputType.number,
-          decoration: const InputDecoration(hintText: 'Code-barres'),
+          decoration: InputDecoration(hintText: tr('Code-barres')),
           onSubmitted: (v) => Navigator.pop(c, v),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Annuler')),
-          FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: const Text('Valider')),
+          TextButton(onPressed: () => Navigator.pop(c), child: Text(tr('Annuler'))),
+          FilledButton(onPressed: () => Navigator.pop(c, ctrl.text), child: Text(tr('Valider'))),
         ],
       ),
     );
@@ -100,10 +101,10 @@ class _ScannerPageState extends State<ScannerPage> {
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
         titleTextStyle: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
-        title: Text(widget.title),
+        title: Text(tr(widget.title)),
         actions: [
-          IconButton(icon: const Icon(Icons.flash_on), tooltip: 'Lampe', onPressed: () => _controller.toggleTorch()),
-          IconButton(icon: const Icon(Icons.cameraswitch), tooltip: 'Caméra', onPressed: () => _controller.switchCamera()),
+          IconButton(icon: const Icon(Icons.flash_on), tooltip: tr('Lampe'), onPressed: () => _controller.toggleTorch()),
+          IconButton(icon: const Icon(Icons.cameraswitch), tooltip: tr('Caméra'), onPressed: () => _controller.switchCamera()),
         ],
       ),
       body: Stack(children: [
@@ -114,7 +115,7 @@ class _ScannerPageState extends State<ScannerPage> {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Text(
-                'Caméra indisponible. Autorisez l’accès à la caméra dans les réglages, ou saisissez le code.',
+                tr('Caméra indisponible. Autorisez l’accès à la caméra dans les réglages, ou saisissez le code.'),
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white),
               ),
@@ -153,7 +154,7 @@ class _ScannerPageState extends State<ScannerPage> {
               ),
             if (_busy) const LinearProgressIndicator(),
             Text(
-              widget.onCode == null ? 'Placez le code-barres dans le cadre' : 'Scannez les articles les uns après les autres',
+              widget.onCode == null ? tr('Placez le code-barres dans le cadre') : tr('Scannez les articles les uns après les autres'),
               style: const TextStyle(color: Colors.white70),
             ),
             const SizedBox(height: 12),
@@ -163,7 +164,7 @@ class _ScannerPageState extends State<ScannerPage> {
                   style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white54)),
                   onPressed: _manual,
                   icon: const Icon(Icons.keyboard),
-                  label: const Text('Saisir'),
+                  label: Text(tr('Saisir')),
                 ),
               ),
               if (widget.onCode != null) ...[
@@ -172,7 +173,7 @@ class _ScannerPageState extends State<ScannerPage> {
                   child: FilledButton.icon(
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.done),
-                    label: const Text('Terminé'),
+                    label: Text(tr('Terminé')),
                   ),
                 ),
               ],

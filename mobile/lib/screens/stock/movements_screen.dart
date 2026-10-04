@@ -3,19 +3,20 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/paged_list.dart';
 import '../purchases/receipts_screens.dart';
 
 String motifLabel(String m) => switch (m) {
-      'achat' => 'Achat',
-      'vente' => 'Vente',
-      'retour' => 'Retour',
-      'perte' => 'Perte',
-      'don' => 'Don',
-      'ajustement' => 'Ajustement',
-      'inventaire' => 'Inventaire',
+      'achat' => tr('Achat'),
+      'vente' => tr('Vente'),
+      'retour' => tr('Retour'),
+      'perte' => tr('Perte'),
+      'don' => tr('Don'),
+      'ajustement' => tr('Ajustement'),
+      'inventaire' => tr('Inventaire'),
       '' => '—',
       _ => m[0].toUpperCase() + m.substring(1),
     };
@@ -38,14 +39,14 @@ class _MovementsScreenState extends State<MovementsScreen> {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
-      appBar: darkAppBar(_type == 'entree' ? 'Entrées de stock' : (_type == 'sortie' ? 'Sorties de stock' : 'Mouvements de stock')),
+      appBar: darkAppBar(_type == 'entree' ? tr('Entrées de stock') : (_type == 'sortie' ? tr('Sorties de stock') : tr('Mouvements de stock'))),
       body: PagedList<Json>(
         key: _list,
-        searchHint: 'Article, code-barres, référence…',
+        searchHint: tr('Article, code-barres, référence…'),
         emptyIcon: Icons.swap_vert,
-        emptyTitle: 'Aucun mouvement',
+        emptyTitle: tr('Aucun mouvement'),
         filters: FilterChips<String>(
-          options: const [('entree', 'Entrées'), ('sortie', 'Sorties'), (null, 'Tous')],
+          options: [('entree', tr('Entrées')), ('sortie', tr('Sorties')), (null, tr('Tous'))],
           value: _type,
           onChanged: (v) {
             setState(() => _type = v);
@@ -61,8 +62,8 @@ class _MovementsScreenState extends State<MovementsScreen> {
             onTap: isReception ? () => ctx.push(ReceiptDetailScreen(receiptId: m.integer('reference_id'))) : null,
             leading: Stack(clipBehavior: Clip.none, children: [
               ItemThumb(path: a['image'], label: a.articleName, size: 44),
-              Positioned(
-                right: -4,
+              PositionedDirectional(
+                end: -4,
                 bottom: -4,
                 child: CircleAvatar(
                   radius: 10,
@@ -78,7 +79,7 @@ class _MovementsScreenState extends State<MovementsScreen> {
                 motifLabel(m.str('motif')),
                 ?m.obj('fournisseur')?.strOrNull('nom'),
                 ?m.strOrNull('note'),
-                if (m.obj('utilisateur') != null) 'par ${m.obj('utilisateur')!.str('nom')}',
+                if (m.obj('utilisateur') != null) tr('par {nom}', {'nom': m.obj('utilisateur')!.str('nom')}),
               ].join(' · '),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

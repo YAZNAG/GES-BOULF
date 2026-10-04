@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'core/i18n.dart';
 import 'core/session.dart';
 import 'core/theme.dart';
 import 'screens/home_shell.dart';
@@ -15,6 +16,8 @@ final navigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR');
+  await initializeDateFormatting('ar');
+  await appLang.load();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent));
   final session = await Session.start();
   runApp(BoulfrikApp(session: session));
@@ -29,19 +32,23 @@ class BoulfrikApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return SessionScope(
       session: session,
-      child: MaterialApp(
-        title: 'Boulfrik',
-        navigatorKey: navigatorKey,
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(),
-        locale: const Locale('fr', 'FR'),
-        supportedLocales: const [Locale('fr', 'FR'), Locale('ar')],
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        home: const _Root(),
+      // Reconstruit l'application (langue, sens de lecture) au changement de langue.
+      child: ListenableBuilder(
+        listenable: appLang,
+        builder: (context, _) => MaterialApp(
+          title: 'Boulfrik',
+          navigatorKey: navigatorKey,
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(),
+          locale: Locale(appLang.code),
+          supportedLocales: const [Locale('fr'), Locale('ar')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: const _Root(),
+        ),
       ),
     );
   }

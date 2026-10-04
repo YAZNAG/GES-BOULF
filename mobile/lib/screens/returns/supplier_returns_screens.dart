@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/lines_editor.dart';
@@ -11,8 +12,8 @@ import '../../widgets/pickers.dart';
 
 /// Règlement d'un retour fournisseur.
 String settlementLabel(String? r) => switch (r) {
-      'avoir' => 'Avoir (déduit du crédit)',
-      'remboursement' => 'Remboursement',
+      'avoir' => tr('Avoir (déduit du crédit)'),
+      'remboursement' => tr('Remboursement'),
       null || '' => '—',
       _ => r,
     };
@@ -35,7 +36,7 @@ class _SupplierReturnsScreenState extends State<SupplierReturnsScreen> {
   Widget build(BuildContext context) {
     final api = context.api;
     return Scaffold(
-      appBar: darkAppBar('Retours fournisseurs', subtitle: widget.supplierName),
+      appBar: darkAppBar(tr('Retours fournisseurs'), subtitle: widget.supplierName),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'supplier-return-add',
         onPressed: () async {
@@ -43,19 +44,19 @@ class _SupplierReturnsScreenState extends State<SupplierReturnsScreen> {
           _list.currentState?.reload();
         },
         icon: const Icon(Icons.add),
-        label: const Text('Nouveau retour'),
+        label: Text(tr('Nouveau retour')),
       ),
       body: PagedList<Json>(
         key: _list,
-        searchHint: 'N° de retour, fournisseur…',
+        searchHint: tr('N° de retour, fournisseur…'),
         emptyIcon: Icons.assignment_return,
-        emptyTitle: 'Aucun retour fournisseur',
+        emptyTitle: tr('Aucun retour fournisseur'),
         headerBuilder: (context, raw) {
           final s = raw.obj('stats');
           if (s == null) return null;
           return StatsRow(children: [
-            MiniStat(label: 'Retours du mois', value: qty(s['mois_nombre'])),
-            MiniStat(label: 'Montant du mois', value: moneyShort(s['mois_montant']), color: AppColors.warning),
+            MiniStat(label: tr('Retours du mois'), value: qty(s['mois_nombre'])),
+            MiniStat(label: tr('Montant du mois'), value: moneyShort(s['mois_montant']), color: AppColors.warning),
           ]);
         },
         fetch: (page, q) => api.page('retours-fournisseurs', (j) => j,
@@ -76,7 +77,7 @@ class _SupplierReturnsScreenState extends State<SupplierReturnsScreen> {
           ),
           trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text(money(r['total']), style: const TextStyle(fontWeight: FontWeight.w800)),
-            Text('${r.integer('lignes_count')} ligne${r.integer('lignes_count') > 1 ? 's' : ''}',
+            Text(r.integer('lignes_count') > 1 ? tr('{n} lignes', {'n': r.integer('lignes_count')}) : tr('{n} ligne', {'n': r.integer('lignes_count')}),
                 style: const TextStyle(fontSize: 11.5, color: AppColors.muted)),
           ]),
           onTap: () => ctx.push(SupplierReturnDetailScreen(returnId: r.integer('id'))),
@@ -95,7 +96,7 @@ class SupplierReturnDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar('Retour fournisseur'),
+      appBar: darkAppBar(tr('Retour fournisseur')),
       body: AsyncView<Json>(
         load: () async => (await context.api.get('retours-fournisseurs/$returnId') as Map).cast<String, dynamic>(),
         builder: (context, r, reload) {
@@ -111,7 +112,7 @@ class SupplierReturnDetailScreen extends StatelessWidget {
                     Expanded(
                       child: Text(r.str('numero'), style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800)),
                     ),
-                    Badge2(r.str('reglement') == 'avoir' ? 'Avoir' : 'Remboursement', color: const Color(0xFF93C5FD)),
+                    Badge2(r.str('reglement') == 'avoir' ? tr('Avoir') : tr('Remboursement'), color: const Color(0xFF93C5FD)),
                   ]),
                   const SizedBox(height: 4),
                   Text(r.obj('fournisseur')?.str('nom') ?? '—', style: const TextStyle(color: Colors.white70, fontSize: 15)),
@@ -120,17 +121,17 @@ class SupplierReturnDetailScreen extends StatelessWidget {
                 ]),
               ),
               const SizedBox(height: 14),
-              SectionCard(title: 'Informations', icon: Icons.info_outline, children: [
-                InfoRow('Date du retour', date(r['date_retour'])),
-                InfoRow('Règlement', settlementLabel(r.strOrNull('reglement'))),
-                if (r.obj('reception') != null) InfoRow('Bon de réception', r.obj('reception')!.str('numero')),
-                InfoRow('Motif', r.str('motif')),
-                if (r.strOrNull('note') != null) InfoRow('Note', r.str('note')),
-                InfoRow('Enregistré par', r.obj('utilisateur')?.str('nom') ?? ''),
+              SectionCard(title: tr('Informations'), icon: Icons.info_outline, children: [
+                InfoRow(tr('Date du retour'), date(r['date_retour'])),
+                InfoRow(tr('Règlement'), settlementLabel(r.strOrNull('reglement'))),
+                if (r.obj('reception') != null) InfoRow(tr('Bon de réception'), r.obj('reception')!.str('numero')),
+                InfoRow(tr('Motif'), r.str('motif')),
+                if (r.strOrNull('note') != null) InfoRow(tr('Note'), r.str('note')),
+                InfoRow(tr('Enregistré par'), r.obj('utilisateur')?.str('nom') ?? ''),
               ]),
               const SizedBox(height: 14),
               SectionCard(
-                title: 'Articles retournés (${lignes.length})',
+                title: tr('Articles retournés ({n})', {'n': lignes.length}),
                 icon: Icons.inventory_2_outlined,
                 padding: const EdgeInsets.fromLTRB(0, 14, 0, 6),
                 children: [
@@ -142,11 +143,11 @@ class SupplierReturnDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               SectionCard(children: [
-                TotalLine('Total du retour', money(r['total']), bold: true),
+                TotalLine(tr('Total du retour'), money(r['total']), bold: true),
                 Text(
                   r.str('reglement') == 'avoir'
-                      ? 'Montant déduit de ce que nous devons au fournisseur.'
-                      : 'Montant à rembourser par le fournisseur.',
+                      ? tr('Montant déduit de ce que nous devons au fournisseur.')
+                      : tr('Montant à rembourser par le fournisseur.'),
                   style: const TextStyle(color: AppColors.muted, fontSize: 12.5),
                 ),
               ]),
@@ -168,7 +169,15 @@ class SupplierReturnDetailScreen extends StatelessWidget {
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(a.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w600)),
-            if (ar != null) Align(alignment: Alignment.centerLeft, child: ArabicText(ar, maxLines: 1)),
+            if (ar != null)
+              Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: Text(ar,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textDirection: appLang.isAr ? TextDirection.ltr : TextDirection.rtl,
+                    style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+              ),
             Text('${qty(l['quantite'], a.unit)} × ${money(l['prix_achat'])}', style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
           ]),
         ),
@@ -212,16 +221,16 @@ class _SupplierReturnFormState extends State<SupplierReturnForm> {
 
   Future<void> _save() async {
     final errors = <String, List<String>>{};
-    if (_supplier == null) errors['fournisseur_id'] = ['Choisissez un fournisseur.'];
-    if (_lines.isEmpty) errors['lignes'] = ['Ajoutez au moins un article.'];
+    if (_supplier == null) errors['fournisseur_id'] = [tr('Choisissez un fournisseur.')];
+    if (_lines.isEmpty) errors['lignes'] = [tr('Ajoutez au moins un article.')];
     for (var i = 0; i < _lines.length; i++) {
       final l = _lines[i];
-      if (parseInput(l.quantity.text) == null || l.qtyValue <= 0) errors['lignes.$i.quantite'] = ['Quantité invalide'];
-      if (parseInput(l.price.text) == null || l.priceValue < 0) errors['lignes.$i.prix_achat'] = ['Prix d’achat requis'];
+      if (parseInput(l.quantity.text) == null || l.qtyValue <= 0) errors['lignes.$i.quantite'] = [tr('Quantité invalide')];
+      if (parseInput(l.price.text) == null || l.priceValue < 0) errors['lignes.$i.prix_achat'] = [tr('Prix d’achat requis')];
     }
     if (errors.isNotEmpty) {
       setState(() => _errors = errors);
-      showError(context, ApiException('Vérifiez les champs en rouge.'));
+      showError(context, ApiException(tr('Vérifiez les champs en rouge.')));
       return;
     }
     setState(() {
@@ -241,7 +250,8 @@ class _SupplierReturnFormState extends State<SupplierReturnForm> {
       });
       if (!mounted) return;
       final r = res is Map ? res.cast<String, dynamic>() : <String, dynamic>{};
-      showSuccess(context, 'Retour ${r.str('numero')} enregistré · ${money(r['total'] ?? _total)}. Stock mis à jour.');
+      showSuccess(context,
+          tr('Retour {numero} enregistré · {montant}. Stock mis à jour.', {'numero': r.str('numero'), 'montant': money(r['total'] ?? _total)}));
       final id = r.intOrNull('id');
       if (id != null) {
         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => SupplierReturnDetailScreen(returnId: id)));
@@ -262,13 +272,13 @@ class _SupplierReturnFormState extends State<SupplierReturnForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: darkAppBar('Nouveau retour fournisseur'),
+      appBar: darkAppBar(tr('Nouveau retour fournisseur')),
       body: ListView(padding: const EdgeInsets.all(16), children: [
         EntityField(
-          label: 'Fournisseur *',
+          label: tr('Fournisseur *'),
           icon: Icons.local_shipping_outlined,
           text: _supplier?.str('nom'),
-          subtitle: _supplier != null && _supplier!.dbl('solde') > 0 ? 'Crédit actuel : ${money(_supplier!['solde'])}' : null,
+          subtitle: _supplier != null && _supplier!.dbl('solde') > 0 ? tr('Crédit actuel : {montant}', {'montant': money(_supplier!['solde'])}) : null,
           error: _errors['fournisseur_id']?.first,
           onTap: () async {
             final s = await pickSupplier(context);
@@ -276,15 +286,15 @@ class _SupplierReturnFormState extends State<SupplierReturnForm> {
           },
         ),
         const SizedBox(height: 12),
-        DateField(label: 'Date du retour', value: _date, onChanged: (v) => setState(() => _date = v)),
-        const GroupLabel('Articles retournés'),
+        DateField(label: tr('Date du retour'), value: _date, onChanged: (v) => setState(() => _date = v)),
+        GroupLabel(tr('Articles retournés')),
         LinesEditor(
           lines: _lines,
           onChanged: () => setState(() {}),
-          priceLabel: 'Prix d’achat',
+          priceLabel: tr('Prix d’achat'),
           errors: _errors,
         ),
-        const GroupLabel('Règlement'),
+        GroupLabel(tr('Règlement')),
         Wrap(spacing: 8, runSpacing: 8, children: [
           for (final (k, label, icon) in const [
             ('avoir', 'Avoir — déduit du crédit', Icons.account_balance_wallet_outlined),
@@ -292,7 +302,7 @@ class _SupplierReturnFormState extends State<SupplierReturnForm> {
           ])
             ChoiceChip(
               avatar: Icon(icon, size: 18, color: _reglement == k ? AppColors.primary : AppColors.muted),
-              label: Text(label),
+              label: Text(tr(label)),
               selected: _reglement == k,
               showCheckmark: false,
               selectedColor: AppColors.primary.withValues(alpha: 0.12),
@@ -308,29 +318,29 @@ class _SupplierReturnFormState extends State<SupplierReturnForm> {
           padding: const EdgeInsets.only(top: 6),
           child: Text(
             _reglement == 'avoir'
-                ? 'Le montant est déduit de ce que nous devons au fournisseur.'
-                : 'Le fournisseur nous rembourse le montant.',
+                ? tr('Le montant est déduit de ce que nous devons au fournisseur.')
+                : tr('Le fournisseur nous rembourse le montant.'),
             style: const TextStyle(color: AppColors.muted, fontSize: 12.5),
           ),
         ),
         const SizedBox(height: 14),
-        TextField(controller: _motif, decoration: InputDecoration(labelText: 'Motif (facultatif)', errorText: _errors['motif']?.first)),
+        TextField(controller: _motif, decoration: InputDecoration(labelText: tr('Motif (facultatif)'), errorText: _errors['motif']?.first)),
         const SizedBox(height: 12),
-        TextField(controller: _note, maxLines: 2, decoration: const InputDecoration(labelText: 'Note (facultatif)')),
+        TextField(controller: _note, maxLines: 2, decoration: InputDecoration(labelText: tr('Note (facultatif)'))),
         const SizedBox(height: 14),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: TotalLine('Total du retour', money(_total), big: true),
+            child: TotalLine(tr('Total du retour'), money(_total), big: true),
           ),
         ),
       ]),
       bottomNavigationBar: BottomAction(
         leading: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
-          Text('${_lines.length} ligne${_lines.length > 1 ? 's' : ''}', style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
+          Text(_lines.length > 1 ? tr('{n} lignes', {'n': _lines.length}) : tr('{n} ligne', {'n': _lines.length}), style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
           FittedBox(child: Text(money(_total), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18))),
         ]),
-        label: 'Valider',
+        label: tr('Valider'),
         icon: Icons.assignment_return,
         busy: _busy,
         onPressed: _save,

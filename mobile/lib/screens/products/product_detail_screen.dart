@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/api.dart';
 import '../../core/article.dart';
 import '../../core/format.dart';
+import '../../core/i18n.dart';
 import '../../core/theme.dart';
 import '../../widgets/common.dart';
 import '../../widgets/delete_helper.dart';
@@ -50,7 +51,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final ok = await runBusy<bool>(context, () async {
       await api.put('tarifs/${a.integer('id')}', {'actif': actif});
       return true;
-    }, success: actif ? 'Article activé.' : 'Article désactivé.');
+    }, success: actif ? tr('Article activé.') : tr('Article désactivé.'));
     if (ok == true) _reload();
   }
 
@@ -58,11 +59,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     final actif = a.isActive;
     final ok = await confirm(
       context,
-      actif ? 'Désactiver l’article' : 'Activer l’article',
+      actif ? tr('Désactiver l’article') : tr('Activer l’article'),
       actif
-          ? '« ${a.articleName} » ne pourra plus être vendu en caisse. Son historique est conservé.'
-          : '« ${a.articleName} » pourra de nouveau être vendu (s’il a un prix de vente).',
-      ok: actif ? 'Désactiver' : 'Activer',
+          ? tr('« {nom} » ne pourra plus être vendu en caisse. Son historique est conservé.', {'nom': a.articleName})
+          : tr('« {nom} » pourra de nouveau être vendu (s’il a un prix de vente).', {'nom': a.articleName}),
+      ok: actif ? tr('Désactiver') : tr('Activer'),
       danger: actif,
     );
     if (ok && mounted) await _setActive(a, !actif);
@@ -79,8 +80,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       final deactivate = await showInUseDialog(
         context,
         message: actif
-            ? 'Cet article est utilisé dans l’historique : il ne peut pas être supprimé. Vous pouvez le désactiver à la place.'
-            : 'Cet article est utilisé dans l’historique : il ne peut pas être supprimé. Il est déjà désactivé.',
+            ? tr('Cet article est utilisé dans l’historique : il ne peut pas être supprimé. Vous pouvez le désactiver à la place.')
+            : tr('Cet article est utilisé dans l’historique : il ne peut pas être supprimé. Il est déjà désactivé.'),
         usages: usagesOf(usage['utilisations']),
         canDeactivate: actif,
       );
@@ -90,15 +91,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     var deleted = false;
     final changed = await deleteWithFallback(
       context,
-      what: 'l’article « ${a.articleName} »',
-      confirmMessage: '« ${a.articleName} » sera supprimé définitivement (avec son prix et son stock).',
+      what: tr('l’article « {nom} »', {'nom': a.articleName}),
+      confirmMessage: tr('« {nom} » sera supprimé définitivement (avec son prix et son stock).', {'nom': a.articleName}),
       delete: () async {
         await api.delete('articles/$id');
         deleted = true;
       },
       deactivate: actif ? () => api.put('tarifs/$id', {'actif': false}) : null,
-      success: 'Article supprimé.',
-      deactivated: 'Article désactivé.',
+      success: tr('Article supprimé.'),
+      deactivated: tr('Article désactivé.'),
     );
     if (!changed || !mounted) return;
     if (deleted) {
@@ -110,7 +111,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   Future<void> _photoMenu(Json a) async {
     final url = context.api.imageUrl(a['image']);
-    final action = await askPhotoAction(context, hasImage: url != null, title: 'Photo de l’article');
+    final action = await askPhotoAction(context, hasImage: url != null, title: tr('Photo de l’article'));
     if (action == null || !mounted) return;
     final api = context.api;
     final id = a.integer('id');
@@ -121,16 +122,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       case PhotoAction.gallery:
         final f = await pickPhotoFile(context, action == PhotoAction.camera ? ImageSource.camera : ImageSource.gallery);
         if (f == null || !mounted) return;
-        final ok = await runBusy(context, () => api.multipart('images/articles/$id', {}, file: f), success: 'Photo mise à jour.');
+        final ok = await runBusy(context, () => api.multipart('images/articles/$id', {}, file: f), success: tr('Photo mise à jour.'));
         if (ok != null) _reload();
       case PhotoAction.remove:
-        final sure = await confirm(context, 'Supprimer la photo', 'La photo de « ${a.articleName} » sera supprimée.',
-            ok: 'Supprimer', danger: true);
+        final sure = await confirm(context, tr('Supprimer la photo'), tr('La photo de « {nom} » sera supprimée.', {'nom': a.articleName}),
+            ok: tr('Supprimer'), danger: true);
         if (!sure || !mounted) return;
         final ok = await runBusy<bool>(context, () async {
           await api.delete('images/articles/$id');
           return true;
-        }, success: 'Photo supprimée.');
+        }, success: tr('Photo supprimée.'));
         if (ok == true) _reload();
     }
   }
@@ -184,26 +185,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         if (!didPop) Navigator.of(context).pop(_changed);
       },
       child: Scaffold(
-        appBar: darkAppBar('Fiche article', actions: [
+        appBar: darkAppBar(tr('Fiche article'), actions: [
           if (_article != null)
             PopupMenuButton<String>(
-              tooltip: 'Actions',
+              tooltip: tr('Actions'),
               onSelected: _menu,
               itemBuilder: (_) => [
-                const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Modifier la fiche'))),
-                const PopupMenuItem(value: 'photo', child: ListTile(leading: Icon(Icons.photo_camera_outlined), title: Text('Changer la photo'))),
+                PopupMenuItem(value: 'edit', child: ListTile(leading: const Icon(Icons.edit_outlined), title: Text(tr('Modifier la fiche')))),
+                PopupMenuItem(value: 'photo', child: ListTile(leading: const Icon(Icons.photo_camera_outlined), title: Text(tr('Changer la photo')))),
                 PopupMenuItem(
                   value: 'toggle',
                   child: ListTile(
                     leading: Icon(_article!.isActive ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                    title: Text(_article!.isActive ? 'Désactiver' : 'Activer'),
+                    title: Text(_article!.isActive ? tr('Désactiver') : tr('Activer')),
                   ),
                 ),
-                const PopupMenuItem(
+                PopupMenuItem(
                   value: 'delete',
                   child: ListTile(
-                    leading: Icon(Icons.delete_outline, color: AppColors.danger),
-                    title: Text('Supprimer', style: TextStyle(color: AppColors.danger)),
+                    leading: const Icon(Icons.delete_outline, color: AppColors.danger),
+                    title: Text(tr('Supprimer'), style: const TextStyle(color: AppColors.danger)),
                   ),
                 ),
               ],
@@ -238,21 +239,21 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 ? Column(mainAxisSize: MainAxisSize.min, children: [
                     ItemThumb(label: a.articleName, size: 130),
                     const SizedBox(height: 8),
-                    const Text('Toucher pour ajouter une photo', style: TextStyle(color: AppColors.muted, fontSize: 12.5)),
+                    Text(tr('Toucher pour ajouter une photo'), style: const TextStyle(color: AppColors.muted, fontSize: 12.5)),
                   ])
                 : Hero(
                     tag: 'article-${a.integer('id')}',
                     child: Image.network(imageUrl, fit: BoxFit.contain, errorBuilder: (_, _, _) => ItemThumb(label: a.articleName, size: 130)),
                   ),
-            Positioned(
-              right: 0,
+            PositionedDirectional(
+              end: 0,
               bottom: 0,
               child: Material(
                 color: Colors.white,
                 elevation: 2,
                 shape: const CircleBorder(),
                 child: IconButton(
-                  tooltip: 'Photo',
+                  tooltip: tr('Photo'),
                   icon: const Icon(Icons.photo_camera_outlined, color: AppColors.primary),
                   onPressed: () => _photoMenu(a),
                 ),
@@ -268,13 +269,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           Text(a.articleName, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, height: 1.2)),
           if (ar != null) ...[
             const SizedBox(height: 4),
-            ArabicText(ar, textAlign: TextAlign.right, style: const TextStyle(fontSize: 18, color: AppColors.muted, fontWeight: FontWeight.w600)),
+            appLang.isAr
+                ? Text(ar, textDirection: TextDirection.ltr, textAlign: TextAlign.end, style: const TextStyle(fontSize: 18, color: AppColors.muted, fontWeight: FontWeight.w600))
+                : ArabicText(ar, textAlign: TextAlign.right, style: const TextStyle(fontSize: 18, color: AppColors.muted, fontWeight: FontWeight.w600)),
           ],
           const SizedBox(height: 10),
           Wrap(spacing: 6, runSpacing: 6, children: [
-            a.isActive ? const Badge2('Actif', color: AppColors.success, icon: Icons.check_circle) : const Badge2('Inactif', color: AppColors.muted),
-            if (!a.isPriced) const Badge2('À tarifer', color: AppColors.warning, icon: Icons.sell_outlined),
-            if (a.hasPromo) const Badge2('En promotion', color: AppColors.primary, icon: Icons.local_offer),
+            a.isActive ? Badge2(tr('Actif'), color: AppColors.success, icon: Icons.check_circle) : Badge2(tr('Inactif'), color: AppColors.muted),
+            if (!a.isPriced) Badge2(tr('À tarifer'), color: AppColors.warning, icon: Icons.sell_outlined),
+            if (a.hasPromo) Badge2(tr('En promotion'), color: AppColors.primary, icon: Icons.local_offer),
             if (a.brandName != null) Badge2(a.brandName!, color: AppColors.info, icon: Icons.verified_outlined),
           ]),
           const SizedBox(height: 14),
@@ -283,37 +286,37 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               child: ListTile(
                 leading: const Icon(Icons.qr_code_2, color: AppColors.ink),
                 title: Text(a.barcode, style: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 1)),
-                subtitle: const Text('Code-barres'),
+                subtitle: Text(tr('Code-barres')),
                 trailing: IconButton(
                   icon: const Icon(Icons.copy, size: 20),
-                  tooltip: 'Copier',
+                  tooltip: tr('Copier'),
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: a.barcode));
-                    showInfo(context, 'Code-barres copié.');
+                    showInfo(context, tr('Code-barres copié.'));
                   },
                 ),
               ),
             ),
           const SizedBox(height: 14),
           SectionCard(
-            title: 'Prix',
+            title: tr('Prix'),
             icon: Icons.sell_outlined,
-            trailing: TextButton.icon(onPressed: () => _editPrices(a), icon: const Icon(Icons.edit, size: 18), label: const Text('Modifier')),
+            trailing: TextButton.icon(onPressed: () => _editPrices(a), icon: const Icon(Icons.edit, size: 18), label: Text(tr('Modifier'))),
             children: [
               Row(children: [
-                Expanded(child: _PriceBox(label: 'Prix de vente', value: a.prixVente, highlight: true)),
+                Expanded(child: _PriceBox(label: tr('Prix de vente'), value: a.prixVente, highlight: true)),
                 const SizedBox(width: 10),
-                Expanded(child: _PriceBox(label: 'Prix d’achat', value: a.prixAchat)),
+                Expanded(child: _PriceBox(label: tr('Prix d’achat'), value: a.prixAchat)),
               ]),
               const SizedBox(height: 10),
               Row(children: [
-                Expanded(child: _PriceBox(label: 'Prix de gros', value: a.prixGros)),
+                Expanded(child: _PriceBox(label: tr('Prix de gros'), value: a.prixGros)),
                 const SizedBox(width: 10),
-                Expanded(child: _PriceBox(label: 'Prix promo', value: a.prixPromo, color: AppColors.primary)),
+                Expanded(child: _PriceBox(label: tr('Prix promo'), value: a.prixPromo, color: AppColors.primary)),
               ]),
               const SizedBox(height: 12),
               Row(children: [
-                const Text('Marge sur vente', style: TextStyle(color: AppColors.muted)),
+                Text(tr('Marge sur vente'), style: const TextStyle(color: AppColors.muted)),
                 const Spacer(),
                 if (m != null && a.prixVente > 0)
                   Text('${money(a.prixVente - a.prixAchat)}  ·  ', style: const TextStyle(color: AppColors.muted)),
@@ -329,9 +332,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ),
           const SizedBox(height: 14),
           SectionCard(
-            title: 'Stock',
+            title: tr('Stock'),
             icon: Icons.warehouse_outlined,
-            trailing: TextButton.icon(onPressed: () => _adjust(a), icon: const Icon(Icons.tune, size: 18), label: const Text('Ajuster')),
+            trailing: TextButton.icon(onPressed: () => _adjust(a), icon: const Icon(Icons.tune, size: 18), label: Text(tr('Ajuster'))),
             children: [
               Row(children: [
                 Expanded(
@@ -342,34 +345,34 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           fontWeight: FontWeight.w900,
                           color: stock == null || stock <= 0 ? AppColors.danger : (stock <= a.stockMin ? AppColors.warning : AppColors.ink),
                         )),
-                    Text('Seuil minimum : ${qty(a.stockMin, a.unit)}', style: const TextStyle(color: AppColors.muted)),
+                    Text(tr('Seuil minimum : {seuil}', {'seuil': qty(a.stockMin, a.unit)}), style: const TextStyle(color: AppColors.muted)),
                   ]),
                 ),
                 Badge2(
-                  stock == null || stock <= 0 ? 'Rupture' : (stock <= a.stockMin ? 'Sous le seuil' : 'En stock'),
+                  stock == null || stock <= 0 ? tr('Rupture') : (stock <= a.stockMin ? tr('Sous le seuil') : tr('En stock')),
                   color: stock == null || stock <= 0 ? AppColors.danger : (stock <= a.stockMin ? AppColors.warning : AppColors.success),
                 ),
               ]),
               if (stock != null && a.prixAchat > 0) ...[
                 const Divider(height: 22),
-                InfoRow('Valeur (achat)', money(stock * a.prixAchat)),
+                InfoRow(tr('Valeur (achat)'), money(stock * a.prixAchat)),
               ],
             ],
           ),
           const SizedBox(height: 14),
           SectionCard(
-              title: 'Classement',
+              title: tr('Classement'),
               icon: Icons.category_outlined,
-              trailing: TextButton.icon(onPressed: () => _editRecord(a), icon: const Icon(Icons.edit, size: 18), label: const Text('Modifier')),
+              trailing: TextButton.icon(onPressed: () => _editRecord(a), icon: const Icon(Icons.edit, size: 18), label: Text(tr('Modifier'))),
               children: [
-            InfoRow('Catégorie', path),
-            InfoRow('Marque', a.brandName ?? ''),
-            InfoRow('Unité', a.unit),
-            InfoRow('Référence interne', '#${a.integer('id')}'),
+            InfoRow(tr('Catégorie'), path),
+            InfoRow(tr('Marque'), a.brandName ?? ''),
+            InfoRow(tr('Unité'), a.unit),
+            InfoRow(tr('Référence interne'), '#${a.integer('id')}'),
           ]),
           if (a.strOrNull('description') != null) ...[
             const SizedBox(height: 14),
-            SectionCard(title: 'Description', icon: Icons.notes, children: [
+            SectionCard(title: tr('Description'), icon: Icons.notes, children: [
               Text(a.str('description'), style: const TextStyle(height: 1.45)),
             ]),
           ],
@@ -379,7 +382,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               child: OutlinedButton.icon(
                 onPressed: () => _toggleActive(a),
                 icon: Icon(a.isActive ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                label: Text(a.isActive ? 'Désactiver' : 'Activer'),
+                label: Text(a.isActive ? tr('Désactiver') : tr('Activer')),
               ),
             ),
             const SizedBox(width: 10),
@@ -388,7 +391,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 style: OutlinedButton.styleFrom(foregroundColor: AppColors.danger),
                 onPressed: () => _delete(a),
                 icon: const Icon(Icons.delete_outline),
-                label: const Text('Supprimer'),
+                label: Text(tr('Supprimer')),
               ),
             ),
           ]),
@@ -420,7 +423,7 @@ class _PriceBox extends StatelessWidget {
         const SizedBox(height: 4),
         FittedBox(
           fit: BoxFit.scaleDown,
-          alignment: Alignment.centerLeft,
+          alignment: AlignmentDirectional.centerStart,
           child: Text(
             value > 0 ? money(value) : '—',
             style: TextStyle(

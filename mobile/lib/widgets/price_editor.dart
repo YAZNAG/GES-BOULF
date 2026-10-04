@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/api.dart';
 import '../core/article.dart';
 import '../core/format.dart';
+import '../core/i18n.dart';
 import '../core/theme.dart';
 import 'common.dart';
 
@@ -63,7 +64,7 @@ class _PriceSheetState extends State<_PriceSheet> {
         'actif': _actif,
       });
       if (mounted) {
-        showSuccess(context, 'Prix enregistrés.');
+        showSuccess(context, tr('Prix enregistrés.'));
         Navigator.pop(context, true);
       }
     } on ApiException catch (e) {
@@ -84,8 +85,8 @@ class _PriceSheetState extends State<_PriceSheet> {
       autofocus: autofocus,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       decoration: InputDecoration(
-        labelText: label,
-        suffixText: 'DH',
+        labelText: tr(label),
+        suffixText: tr('DH'),
         prefixIcon: icon == null ? null : Icon(icon, size: 20),
         errorText: _errors[key]?.first,
       ),
@@ -100,7 +101,7 @@ class _PriceSheetState extends State<_PriceSheet> {
       padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 20),
       child: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, mainAxisSize: MainAxisSize.min, children: [
-          const Text('Modifier les prix', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+          Text(tr('Modifier les prix'), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
           ProductHeader(article: widget.article),
           const SizedBox(height: 16),
@@ -122,7 +123,7 @@ class _PriceSheetState extends State<_PriceSheet> {
             child: Row(children: [
               const Icon(Icons.trending_up, color: AppColors.muted, size: 20),
               const SizedBox(width: 8),
-              const Expanded(child: Text('Marge sur vente', style: TextStyle(color: AppColors.muted))),
+              Expanded(child: Text(tr('Marge sur vente'), style: const TextStyle(color: AppColors.muted))),
               Text(
                 m == null ? '—' : percent(m),
                 style: TextStyle(
@@ -136,8 +137,8 @@ class _PriceSheetState extends State<_PriceSheet> {
             contentPadding: EdgeInsets.zero,
             value: _actif,
             activeThumbColor: AppColors.primary,
-            title: const Text('Article actif (vendable en caisse)', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: const Text('Un prix de vente > 0 active l’article.'),
+            title: Text(tr('Article actif (vendable en caisse)'), style: const TextStyle(fontWeight: FontWeight.w600)),
+            subtitle: Text(tr('Un prix de vente > 0 active l’article.')),
             onChanged: (v) => setState(() => _actif = v),
           ),
           const SizedBox(height: 8),
@@ -146,7 +147,7 @@ class _PriceSheetState extends State<_PriceSheet> {
             icon: _busy
                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.check),
-            label: const Text('Enregistrer'),
+            label: Text(tr('Enregistrer')),
           ),
         ]),
       ),
@@ -173,7 +174,13 @@ class ProductHeader extends StatelessWidget {
             Text(article.brandName!.toUpperCase(),
                 style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
           Text(article.articleName, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-          if (ar != null) Align(alignment: Alignment.centerLeft, child: ArabicText(ar, maxLines: 1)),
+          if (ar != null)
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: appLang.isAr
+                  ? Directionality(textDirection: TextDirection.ltr, child: Text(ar, maxLines: 1, overflow: TextOverflow.ellipsis))
+                  : ArabicText(ar, maxLines: 1),
+            ),
           Text(article.barcode, style: const TextStyle(color: AppColors.muted, fontSize: 11.5, fontFamily: 'monospace')),
         ]),
       ),

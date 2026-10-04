@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api.dart';
+import 'i18n.dart';
 
 const defaultServer = 'https://boulfrik.optizaworks.com';
 
@@ -35,11 +36,11 @@ class Session extends ChangeNotifier {
   String get userEmail => user?.str('email') ?? '';
 
   String get roleLabel => switch (roleName.toLowerCase()) {
-        'admin' => 'Administrateur',
-        'vendeur' => 'Vendeur',
-        'magasinier' => 'Magasinier',
-        'agent' => 'Agent',
-        'livreur' => 'Livreur',
+        'admin' => tr('Administrateur'),
+        'vendeur' => tr('Vendeur'),
+        'magasinier' => tr('Magasinier'),
+        'agent' => tr('Agent'),
+        'livreur' => tr('Livreur'),
         '' => '—',
         _ => roleName[0].toUpperCase() + roleName.substring(1),
       };
@@ -91,7 +92,7 @@ class Session extends ChangeNotifier {
     final res = await api.post('auth/login', {'email': email.trim(), 'password': password}) as Json;
     final token = res.strOrNull('token');
     final u = res.obj('user');
-    if (token == null || u == null) throw ApiException('Réponse de connexion invalide.');
+    if (token == null || u == null) throw ApiException(tr('Réponse de connexion invalide.'));
     api.token = token;
     await _storage.write(key: 'token', value: token);
     await _setUser(u);

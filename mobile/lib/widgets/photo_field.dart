@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../core/i18n.dart';
 import '../core/theme.dart';
 import 'common.dart';
 
@@ -12,7 +13,7 @@ Future<File?> pickPhotoFile(BuildContext context, ImageSource source) async {
     final x = await ImagePicker().pickImage(source: source, maxWidth: 1200, maxHeight: 1200, imageQuality: 85);
     return x == null ? null : File(x.path);
   } catch (e) {
-    if (context.mounted) showInfo(context, 'Impossible d’ouvrir ${source == ImageSource.camera ? 'l’appareil photo' : 'la galerie'}.');
+    if (context.mounted) showInfo(context, source == ImageSource.camera ? tr('Impossible d’ouvrir l’appareil photo.') : tr('Impossible d’ouvrir la galerie.'));
     return null;
   }
 }
@@ -26,27 +27,27 @@ Future<PhotoAction?> askPhotoAction(BuildContext context, {required bool hasImag
     showDragHandle: true,
     builder: (c) => SafeArea(
       child: Column(mainAxisSize: MainAxisSize.min, children: [
-        ListTile(title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800))),
+        ListTile(title: Text(tr(title), style: const TextStyle(fontWeight: FontWeight.w800))),
         if (hasImage)
           ListTile(
             leading: const Icon(Icons.zoom_in),
-            title: const Text('Voir en grand'),
+            title: Text(tr('Voir en grand')),
             onTap: () => Navigator.pop(c, PhotoAction.view),
           ),
         ListTile(
           leading: const Icon(Icons.photo_camera_outlined),
-          title: const Text('Appareil photo'),
+          title: Text(tr('Appareil photo')),
           onTap: () => Navigator.pop(c, PhotoAction.camera),
         ),
         ListTile(
           leading: const Icon(Icons.photo_library_outlined),
-          title: const Text('Galerie'),
+          title: Text(tr('Galerie')),
           onTap: () => Navigator.pop(c, PhotoAction.gallery),
         ),
         if (hasImage)
           ListTile(
             leading: const Icon(Icons.hide_image_outlined, color: AppColors.danger),
-            title: const Text('Supprimer la photo', style: TextStyle(color: AppColors.danger)),
+            title: Text(tr('Supprimer la photo'), style: const TextStyle(color: AppColors.danger)),
             onTap: () => Navigator.pop(c, PhotoAction.remove),
           ),
       ]),
@@ -99,12 +100,12 @@ class PhotoField extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: () => _pick(context, ImageSource.camera),
           icon: const Icon(Icons.photo_camera_outlined, size: 18),
-          label: const Text('Appareil photo'),
+          label: Text(tr('Appareil photo')),
         ),
         OutlinedButton.icon(
           onPressed: () => _pick(context, ImageSource.gallery),
           icon: const Icon(Icons.photo_library_outlined, size: 18),
-          label: const Text('Galerie'),
+          label: Text(tr('Galerie')),
         ),
       ]),
       if (onRemove != null && (file != null || url != null))
@@ -112,7 +113,7 @@ class PhotoField extends StatelessWidget {
           style: TextButton.styleFrom(foregroundColor: AppColors.danger),
           onPressed: file != null ? () => onChanged(null) : onRemove,
           icon: const Icon(Icons.hide_image_outlined, size: 18),
-          label: Text(file != null ? 'Retirer la nouvelle photo' : 'Supprimer la photo'),
+          label: Text(file != null ? tr('Retirer la nouvelle photo') : tr('Supprimer la photo')),
         ),
     ]);
   }
@@ -122,11 +123,11 @@ class _Placeholder extends StatelessWidget {
   const _Placeholder();
 
   @override
-  Widget build(BuildContext context) => const Center(
+  Widget build(BuildContext context) => Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.add_a_photo_outlined, size: 36, color: AppColors.muted),
-          SizedBox(height: 6),
-          Text('Photo', style: TextStyle(color: AppColors.muted)),
+          const Icon(Icons.add_a_photo_outlined, size: 36, color: AppColors.muted),
+          const SizedBox(height: 6),
+          Text(tr('Photo'), style: const TextStyle(color: AppColors.muted)),
         ]),
       );
 }
