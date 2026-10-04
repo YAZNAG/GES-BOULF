@@ -194,3 +194,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('retours-fournisseurs/{id}', [\App\Http\Controllers\Api\RetourGestionController::class, 'retourFournisseur'])->whereNumber('id');
     Route::get('m/utilisateurs/{id}/activite', [\App\Http\Controllers\Api\MobileController::class, 'activiteUtilisateur'])->whereNumber('id');
 });
+
+// ── Gestion des suppressions et des photos ──
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('articles/{id}/usage', [\App\Http\Controllers\Api\ArticleController::class, 'usage'])->whereNumber('id');
+    Route::post('images/{type}/{id}', [\App\Http\Controllers\Api\ImageController::class, 'remplacer'])->whereNumber('id');
+    Route::delete('images/{type}/{id}', [\App\Http\Controllers\Api\ImageController::class, 'supprimer'])->whereNumber('id');
+    Route::delete('achats/paiements/{id}', [\App\Http\Controllers\Api\AchatController::class, 'annulerPaiement'])->whereNumber('id');
+});

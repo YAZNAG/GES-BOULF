@@ -165,6 +165,13 @@ class AchatController extends Controller
         return response()->json($this->achats->payer($data, $request->user()?->id), 201);
     }
 
+    public function annulerPaiement(int $id)
+    {
+        $this->achats->annulerPaiement(PaiementFournisseur::query()->findOrFail($id));
+
+        return response()->json(['deleted' => true]);
+    }
+
     public function releve(int $id)
     {
         $fournisseur = Fournisseur::query()->findOrFail($id);

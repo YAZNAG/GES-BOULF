@@ -227,6 +227,19 @@ class AchatService
         });
     }
 
+    /** Annule un règlement : le montant redevient dû (et la réception liée redevient non soldée). */
+    public function annulerPaiement(PaiementFournisseur $paiement): void
+    {
+        DB::transaction(function () use ($paiement) {
+            Fournisseur::query()->whereKey($paiement->fournisseur_id)->increment('solde', $paiement->montant);
+            if ($paiement->reception_id) {
+                Reception::query()->whereKey($paiement->reception_id)
+                    ->update(['montant_paye' => DB::raw('GREATEST(0, montant_paye - '.(float) $paiement->montant.')')]);
+            }
+            $paiement->delete();
+        });
+    }
+
     /** Relevé du fournisseur : réceptions (dû) et règlements (payé), avec solde courant. */
     public function releve(Fournisseur $fournisseur): array
     {

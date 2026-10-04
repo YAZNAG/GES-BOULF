@@ -83,5 +83,16 @@ class ClientController extends CrudController
             'total_spent' => $total_spent
         ]);
     }
+
+    public function destroy(string $id)
+    {
+        $client = Client::query()->findOrFail($id);
+        $usages = \App\Support\Utilisation::de('clients', (int) $client->id);
+        if ($usages || abs((float) $client->solde) > 0.009) {
+            return \App\Support\Utilisation::refus('ce client', $usages ?: ['solde non nul' => 1]);
+        }
+
+        return parent::destroy($id);
+    }
 }
 

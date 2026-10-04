@@ -84,4 +84,15 @@ class FournisseurController extends CrudController
             ->withSum('paiements as total_paye', 'montant')
             ->findOrFail($id));
     }
+
+    public function destroy(string $id)
+    {
+        $f = Fournisseur::query()->findOrFail($id);
+        $usages = \App\Support\Utilisation::de('fournisseurs', (int) $f->id);
+        if ($usages || abs((float) $f->solde) > 0.009) {
+            return \App\Support\Utilisation::refus('ce fournisseur', $usages ?: ['crédit non soldé' => 1]);
+        }
+
+        return parent::destroy($id);
+    }
 }

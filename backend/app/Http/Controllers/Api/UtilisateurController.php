@@ -27,5 +27,18 @@ class UtilisateurController extends CrudController
         'mot_de_passe' => ['nullable', 'string', 'min:6'],
         'actif' => ['nullable', 'boolean'],
     ];
+
+    public function destroy(string $id)
+    {
+        if ((int) $id === (int) auth()->id()) {
+            return response()->json(['message' => 'Vous ne pouvez pas supprimer votre propre compte.'], 422);
+        }
+        $usages = \App\Support\Utilisation::de('utilisateurs', (int) $id);
+        if ($usages) {
+            return \App\Support\Utilisation::refus('cet utilisateur', $usages);
+        }
+
+        return parent::destroy($id);
+    }
 }
 

@@ -344,4 +344,30 @@ class ArticleController extends CrudController
             Storage::disk('public')->delete($path);
         }
     }
+
+    /** Où l'article est utilisé : la suppression n'est permise que s'il ne l'est nulle part. */
+    public function usage(string $id)
+    {
+        $article = Article::query()->findOrFail($id);
+        $usages = \App\Support\Utilisation::de('articles', (int) $article->id);
+
+        return response()->json(['utilisations' => $usages, 'supprimable' => empty($usages), 'actif' => (bool) $article->actif]);
+    }
+
+    public function destroy(string $id)
+    {
+        $article = Article::query()->findOrFail($id);
+        $usages = \App\Support\Utilisation::de('articles', (int) $article->id);
+        if ($usages) {
+            return \App\Support\Utilisation::refus('cet article', $usages);
+        }
+        $image = $article->image;
+        $article->delete(); // prix et stock suivent (cascade)
+        if ($image && str_starts_with($image, '/storage/')) {
+            Storage::disk('public')->delete(substr($image, strlen('/storage/')));
+        }
+        $this->logAction('delete', 'articles', (int) $id);
+
+        return response()->json(['deleted' => true]);
+    }
 }
